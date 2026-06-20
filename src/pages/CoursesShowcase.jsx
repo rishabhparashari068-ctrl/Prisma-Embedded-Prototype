@@ -154,15 +154,15 @@ function SlideVisual({ courseId, index }) {
   if (courseId === 'web-dev') {
     if (index === 0) {
       return (
-        <div className="w-full h-full bg-slate-950 rounded-2xl border border-slate-850 p-4 font-mono text-[10px] text-emerald-400 space-y-2 flex flex-col justify-between shadow-inner">
-          <div className="flex justify-between items-center text-[8px] text-slate-500 pb-1 border-b border-slate-850">
+        <div className="w-full h-full bg-slate-950 rounded-2xl border border-slate-800 p-4 font-mono text-[10px] text-emerald-400 space-y-2 flex flex-col justify-between shadow-inner">
+          <div className="flex justify-between items-center text-[8px] text-slate-500 pb-1 border-b border-slate-800">
             <span>GET /dashboard HTTP/1.1</span>
             <span className="text-indigo-400 animate-pulse">Streaming...</span>
           </div>
           <div className="space-y-1 py-2 flex-grow overflow-hidden text-left">
             <p className="text-slate-400">&lt;React.Suspense fallback=&quot;Loading...&quot;&gt;</p>
             <p className="pl-3 text-cyan-400">&lt;Header user=&quot;Prisma Student&quot; /&gt;</p>
-            <div className="pl-3 py-1 flex items-center gap-1 text-slate-450 animate-pulse">
+            <div className="pl-3 py-1 flex items-center gap-1 text-slate-400 animate-pulse">
               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping"></div>
               <span>Fetching Stripe webhook payload...</span>
             </div>
@@ -185,7 +185,7 @@ function SlideVisual({ courseId, index }) {
             <span className="text-xs font-bold text-white">TypeScript 5</span>
             <span className="text-[9px] bg-sky-500 text-white font-extrabold px-2 py-0.5 rounded">Strict</span>
           </div>
-          <div className="p-3 bg-cyan-550/10 border border-cyan-500/20 rounded-xl flex items-center justify-between">
+          <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl flex items-center justify-between">
             <span className="text-xs font-bold text-white">Tailwind CSS</span>
             <span className="text-[9px] bg-cyan-500 text-white font-extrabold px-2 py-0.5 rounded">Utility</span>
           </div>
@@ -194,7 +194,7 @@ function SlideVisual({ courseId, index }) {
     }
     if (index === 2) {
       return (
-        <div className="w-full h-full bg-slate-905 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between text-left text-xs font-semibold space-y-2 shadow-sm text-slate-300">
+        <div className="w-full h-full bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between text-left text-xs font-semibold space-y-2 shadow-sm text-slate-300">
           <div className="flex justify-between items-center pb-2 border-b border-slate-800">
             <span className="text-white font-bold text-[10px]">Stripe Checkout</span>
             <span className="text-[9px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">Live Test</span>
@@ -241,8 +241,8 @@ function SlideVisual({ courseId, index }) {
   if (courseId === 'ai-ml') {
     if (index === 0) {
       return (
-        <div className="w-full h-full bg-slate-950 rounded-2xl border border-slate-850 p-4 flex flex-col justify-between shadow-inner relative overflow-hidden">
-          <div className="flex justify-between items-center text-[8px] text-slate-500 pb-1 border-b border-slate-850">
+        <div className="w-full h-full bg-slate-950 rounded-2xl border border-slate-800 p-4 flex flex-col justify-between shadow-inner relative overflow-hidden">
+          <div className="flex justify-between items-center text-[8px] text-slate-500 pb-1 border-b border-slate-800">
             <span>NETWORK SCHEMATIC</span>
             <span className="text-purple-400 font-bold animate-pulse">Training loss: 0.0482</span>
           </div>
@@ -298,7 +298,7 @@ function SlideVisual({ courseId, index }) {
             <span className="text-emerald-400 font-bold">Score: 0.941</span>
           </div>
           <div className="space-y-1.5">
-            <div className="p-1.5 bg-slate-950 rounded border border-slate-850">
+            <div className="p-1.5 bg-slate-950 rounded border border-slate-800">
               <span className="text-slate-500 font-bold block text-[8px] uppercase">Query Vector</span>
               <p className="text-purple-400 font-mono truncate">[0.15, -0.42, 0.98, ...]</p>
             </div>
@@ -312,16 +312,16 @@ function SlideVisual({ courseId, index }) {
     }
     if (index === 3) {
       return (
-        <div className="w-full h-full bg-slate-950 rounded-2xl border border-slate-850 p-4 font-mono text-[9px] text-purple-300 space-y-2 flex flex-col justify-between shadow-inner text-left">
-          <div className="flex justify-between items-center text-[8px] text-slate-500 pb-1 border-b border-slate-850">
+        <div className="w-full h-full bg-slate-950 rounded-2xl border border-slate-800 p-4 font-mono text-[9px] text-purple-300 space-y-2 flex flex-col justify-between shadow-inner text-left">
+          <div className="flex justify-between items-center text-[8px] text-slate-500 pb-1 border-b border-slate-800">
             <span>llama-3-8b-instruct fine-tune</span>
             <span className="text-purple-400 font-bold">QLoRA Epoch 4</span>
           </div>
           <div className="space-y-1">
-            <p className="text-slate-505">&gt;&gt;&gt; prompt: "Complete firmware config."</p>
-            <p className="text-emerald-405">&gt;&gt;&gt; completion: "Configuring STM32 EXTI0 registers for nested interrupt controller vector..."</p>
+            <p className="text-slate-500">&gt;&gt;&gt; prompt: "Complete firmware config."</p>
+            <p className="text-emerald-400">&gt;&gt;&gt; completion: "Configuring STM32 EXTI0 registers for nested interrupt controller vector..."</p>
           </div>
-          <div className="p-1.5 bg-purple-550/10 border border-purple-500/20 text-purple-300 rounded text-center text-[8px]">
+          <div className="p-1.5 bg-purple-500/10 border border-purple-500/20 text-purple-300 rounded text-center text-[8px]">
             Accuracy: 99.82% &bull; Perplexity: 1.02
           </div>
         </div>
@@ -358,13 +358,13 @@ function SlideVisual({ courseId, index }) {
     }
     if (index === 1) {
       return (
-        <div className="w-full h-full bg-slate-900 border border-slate-800 rounded-2xl p-3 flex flex-col justify-between text-left text-[10px] space-y-1 text-slate-350">
+        <div className="w-full h-full bg-slate-900 border border-slate-800 rounded-2xl p-3 flex flex-col justify-between text-left text-[10px] space-y-1 text-slate-300">
           <div className="flex items-center justify-between text-[8px] text-slate-500 pb-1 border-b border-slate-800">
             <span>DMA CONTROLLER PIPELINE</span>
             <span className="text-emerald-400 font-semibold animate-pulse">SPI Rx DMA Active</span>
           </div>
           <div className="space-y-1 py-1">
-            <div className="p-1 bg-slate-950 rounded border border-slate-850 flex justify-between text-[8.5px]">
+            <div className="p-1 bg-slate-950 rounded border border-slate-800 flex justify-between text-[8.5px]">
               <span className="text-slate-500 font-bold">Peripheral (SPI1_DR)</span>
               <span className="text-cyan-400 font-mono">0x4001300C</span>
             </div>
@@ -381,8 +381,8 @@ function SlideVisual({ courseId, index }) {
     }
     if (index === 2) {
       return (
-        <div className="w-full h-full bg-slate-955 rounded-2xl border border-slate-850 p-4 font-mono text-[9px] text-slate-300 space-y-2 flex flex-col justify-between shadow-inner text-left">
-          <div className="flex justify-between items-center text-[8px] text-slate-500 pb-1 border-b border-slate-850">
+        <div className="w-full h-full bg-slate-950 rounded-2xl border border-slate-800 p-4 font-mono text-[9px] text-slate-300 space-y-2 flex flex-col justify-between shadow-inner text-left">
+          <div className="flex justify-between items-center text-[8px] text-slate-500 pb-1 border-b border-slate-800">
             <span>FreeRTOS Core Task Timeline</span>
             <span className="text-cyan-400 font-bold">Context Switched</span>
           </div>
@@ -430,7 +430,7 @@ function SlideVisual({ courseId, index }) {
   return null;
 }
 
-export default function CoursesShowcase({ setPage, setActiveTrack, tracksData }) {
+export default function CoursesShowcase({ setPage, setActiveTrack, tracksData, setTracksData, onEnrollTrack }) {
   const [activePptCourse, setActivePptCourse] = useState(null); // 'web-dev' | 'ai-ml' | 'embedded' | null
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isAutoplay, setIsAutoplay] = useState(false);
@@ -474,11 +474,57 @@ export default function CoursesShowcase({ setPage, setActiveTrack, tracksData })
     }
   ];
 
+  const enrolledCourseIds = new Set(
+    (tracksData || [])
+      .filter(track => track?.enrolled || (track?.completedNodes || 0) > 0)
+      .map(track => track.id)
+  );
+
+  const purchasedCourses = courses.filter(course =>
+    enrolledCourseIds.has(course.id)
+  );
+
+  const exploreCourses = courses.filter(course =>
+    !enrolledCourseIds.has(course.id)
+  );
+
   // Action: Launch a specific course track in the roadmap
   const handleLaunchTrack = (courseId) => {
-    const matched = tracksData.find(t => t.id === courseId);
+    const matched = tracksData?.find(t => t.id === courseId);
     if (matched) {
-      setActiveTrack(matched);
+      const hasUnlockedNode = matched.nodes.some(node => node.status !== 'locked');
+      const fallbackEnrolledTrack = {
+        ...matched,
+        enrolled: true,
+        nodes: hasUnlockedNode
+          ? matched.nodes
+          : matched.nodes.map((node, index) => ({
+            ...node,
+            status: index === 0 ? 'active' : node.status
+          }))
+      };
+      const enrolledTrack = onEnrollTrack?.(courseId) || fallbackEnrolledTrack;
+      if (!onEnrollTrack) {
+        setTracksData?.((prevTracks = []) =>
+          prevTracks.map(track => {
+            if (track.id !== courseId) return track;
+
+            const trackHasUnlockedNode = track.nodes.some(node => node.status !== 'locked');
+
+            return {
+              ...track,
+              enrolled: true,
+              nodes: trackHasUnlockedNode
+                ? track.nodes
+                : track.nodes.map((node, index) => ({
+                  ...node,
+                  status: index === 0 ? 'active' : node.status
+                }))
+            };
+          })
+        );
+      }
+      setActiveTrack(enrolledTrack);
       setPage('roadmap'); // Correctly route to Duolingo My Journey
     }
   };
@@ -509,31 +555,14 @@ export default function CoursesShowcase({ setPage, setActiveTrack, tracksData })
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
 
-      {/* Header widget */}
-      <div className="glass-panel p-6 sm:p-8 rounded-3xl relative overflow-hidden border border-slate-200/50 dark:border-slate-800/40">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl"></div>
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-left">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-brand-primary text-xs font-bold mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-brand-accent animate-pulse" />
-              <span>Interactive Learning Experience</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white tracking-tight font-sora">
-              Professional Course Showcase
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Analyze multi-tier career packages, view your in-memory learning progression, or play an interactive demo course presentation!
-            </p>
-          </div>
-          <span className="text-[11px] font-bold text-indigo-500 dark:text-brand-accent bg-indigo-50 dark:bg-slate-900 border border-indigo-150 dark:border-slate-800 px-3 py-1.5 rounded-xl">
-            Active Packages: 3
-          </span>
-        </div>
-      </div>
+      {/* My Courses */}
+      <h2 className="text-2xl font-bold text-white mb-4">
+        My Courses
+      </h2>
 
       {/* Grid: Course packages */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-        {courses.map(course => {
+        {purchasedCourses.map(course => {
           // Read dynamic progress from props
           const matchingTrack = tracksData?.find(t => t.id === course.id);
           const completedCount = matchingTrack ? matchingTrack.completedNodes : 0;
@@ -569,7 +598,7 @@ export default function CoursesShowcase({ setPage, setActiveTrack, tracksData })
                 <div className="p-3.5 bg-slate-50 dark:bg-slate-900/60 rounded-xl space-y-2 mb-5 border border-slate-200/50 dark:border-slate-800/40 text-xs">
                   <div className="flex justify-between items-center font-bold">
                     <span className="text-slate-500 dark:text-slate-400">Your Progress</span>
-                    <span className="text-indigo-650 dark:text-brand-accent">{progressPercentage}% Completed</span>
+                    <span className="text-indigo-600 dark:text-brand-accent">{progressPercentage}% Completed</span>
                   </div>
                   <div className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
@@ -577,7 +606,7 @@ export default function CoursesShowcase({ setPage, setActiveTrack, tracksData })
                       style={{ width: `${progressPercentage}%` }}
                     ></div>
                   </div>
-                  <div className="flex justify-between text-[10px] text-slate-450 font-semibold pt-0.5">
+                  <div className="flex justify-between text-[10px] text-slate-400 font-semibold pt-0.5">
                     <span>{completedCount} of {totalCount} Levels Completed</span>
                     {progressPercentage > 0 && <span className="text-emerald-500">Active</span>}
                   </div>
@@ -586,11 +615,11 @@ export default function CoursesShowcase({ setPage, setActiveTrack, tracksData })
                 {/* Core metrics */}
                 <div className="grid grid-cols-2 gap-4 bg-slate-50/70 dark:bg-slate-900/40 p-3 rounded-xl text-xs font-semibold mb-5 border border-slate-200/20 dark:border-slate-800/20">
                   <div>
-                    <span className="text-slate-450 block text-[9px] uppercase font-bold tracking-wider">Duration</span>
+                    <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Duration</span>
                     <span className="text-slate-900 dark:text-white font-bold">{course.duration}</span>
                   </div>
                   <div>
-                    <span className="text-slate-455 block text-[9px] uppercase font-bold tracking-wider">Syllabus Modules</span>
+                    <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Syllabus Modules</span>
                     <span className="text-slate-900 dark:text-white font-bold">{course.modulesCount} Core Pillars</span>
                   </div>
                 </div>
@@ -600,7 +629,7 @@ export default function CoursesShowcase({ setPage, setActiveTrack, tracksData })
                   <h4 className="font-bold text-slate-900 dark:text-white text-xs">Syllabus Pillars</h4>
                   <div className="space-y-1.5 text-xs text-left">
                     {course.syllabus.map((topic, i) => (
-                      <div key={i} className="flex gap-2 items-start text-slate-600 dark:text-slate-350">
+                      <div key={i} className="flex gap-2 items-start text-slate-600 dark:text-slate-300">
                         <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                         <span className="leading-tight font-medium">{topic}</span>
                       </div>
@@ -625,6 +654,62 @@ export default function CoursesShowcase({ setPage, setActiveTrack, tracksData })
                 >
                   Launch My Journey
                   <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Explore Courses */}
+      <h2 className="text-2xl font-bold text-white mt-10 mb-4">
+        Explore Courses
+      </h2>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        {exploreCourses.map(course => {
+          return (
+            <motion.div
+              key={course.id}
+              whileHover={{ y: -3 }}
+              className="glass-panel p-6 rounded-2xl flex flex-col justify-between hover:border-indigo-500/30 transition-all relative overflow-hidden text-left"
+            >
+              <div>
+                <span className="text-[10px] text-indigo-400 font-bold uppercase">
+                  {course.subtitle}
+                </span>
+
+                <h3 className="text-lg font-extrabold text-white mt-2">
+                  {course.title}
+                </h3>
+
+                <p className="text-sm text-slate-400 mt-3">
+                  {course.description}
+                </p>
+
+                <div className="mt-4 space-y-2">
+                  {course.syllabus.map((topic, i) => (
+                    <div key={i} className="flex gap-2 text-xs text-slate-400">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>{topic}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-4 mt-5 border-t border-slate-800">
+                <button
+                  onClick={() => handleOpenPpt(course.id)}
+                  className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold"
+                >
+                  View Demo PPT
+                </button>
+
+                <button
+                  onClick={() => handleLaunchTrack(course.id)}
+                  className="w-full py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold"
+                >
+                  Launch My Journey
                 </button>
               </div>
             </motion.div>
@@ -709,8 +794,8 @@ export default function CoursesShowcase({ setPage, setActiveTrack, tracksData })
                     <button
                       onClick={() => setIsAutoplay(!isAutoplay)}
                       className={`p-2 rounded-xl border transition-colors ${isAutoplay
-                          ? 'bg-indigo-600/15 border-indigo-500/30 text-indigo-400 hover:bg-indigo-600/25'
-                          : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                        ? 'bg-indigo-600/15 border-indigo-500/30 text-indigo-400 hover:bg-indigo-600/25'
+                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
                         }`}
                       title={isAutoplay ? "Pause Slideshow" : "Play Slideshow"}
                     >
@@ -726,8 +811,8 @@ export default function CoursesShowcase({ setPage, setActiveTrack, tracksData })
                             setIsAutoplay(false); // Stop autoplay on manual choice
                           }}
                           className={`h-2 rounded-full transition-all duration-300 ${currentSlideIndex === idx
-                              ? 'w-6 bg-indigo-500'
-                              : 'w-2 bg-slate-700 hover:bg-slate-500'
+                            ? 'w-6 bg-indigo-500'
+                            : 'w-2 bg-slate-700 hover:bg-slate-500'
                             }`}
                         ></button>
                       ))}
@@ -741,7 +826,7 @@ export default function CoursesShowcase({ setPage, setActiveTrack, tracksData })
                         setCurrentSlideIndex((prev) => (prev === 0 ? coursePpts[activePptCourse].slides.length - 1 : prev - 1));
                         setIsAutoplay(false);
                       }}
-                      className="p-2 bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all"
+                      className="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
@@ -750,7 +835,7 @@ export default function CoursesShowcase({ setPage, setActiveTrack, tracksData })
                         setCurrentSlideIndex((prev) => (prev + 1) % coursePpts[activePptCourse].slides.length);
                         setIsAutoplay(false);
                       }}
-                      className="p-2 bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all font-bold"
+                      className="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all font-bold"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>

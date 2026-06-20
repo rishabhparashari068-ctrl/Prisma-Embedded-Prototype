@@ -1,26 +1,30 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   Bookmark,
+  Camera,
   CheckCircle2,
-  Code2,
+  CheckCheck,
   Heart,
   Image,
   Link2,
   MessageCircle,
   MessageSquare,
+  Mic,
   MoreHorizontal,
-  Plus,
+  Paperclip,
+  Phone,
   Search,
   Send,
+  ShieldCheck,
   Share2,
   Smile,
-  Sparkles,
   Star,
   TrendingUp,
   Trophy,
   UserPlus,
   Users,
+  Video,
 } from "lucide-react";
 
 const currentUser = {
@@ -110,37 +114,58 @@ const suggestions = [
 
 const messages = [
   {
+    id: "neha",
     name: "Neha Gupta",
+    role: "Portfolio Mentor",
     text: "Can you review my portfolio hero?",
     time: "2m",
     unread: 2,
+    status: "online",
     avatar:
       "https://images.unsplash.com/photo-1534528741775-53994a69daeb?fit=facearea&facepad=2&w=256&h=256&q=80",
   },
   {
+    id: "rahul",
     name: "Rahul Anand",
+    role: "Backend Builder",
     text: "I shared the Node API checklist.",
     time: "36m",
     unread: 0,
+    status: "typing",
     avatar:
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?fit=facearea&facepad=2&w=256&h=256&q=80",
   },
   {
+    id: "dev",
     name: "Dev Narayan",
+    role: "Team Lead",
     text: "Team call at 8 PM?",
     time: "1h",
     unread: 1,
+    status: "online",
     avatar:
       "https://images.unsplash.com/photo-1519345182560-3f2917c472ef?fit=facearea&facepad=2&w=256&h=256&q=80",
   },
 ];
 
-const communities = [
-  { name: "Placement Sprint", members: "12.8k", icon: Trophy, color: "text-amber-500", bg: "bg-amber-500/10" },
-  { name: "AI Builders Lab", members: "8.7k", icon: Sparkles, color: "text-violet-500", bg: "bg-violet-500/10" },
-  { name: "Embedded Circle", members: "5.4k", icon: Code2, color: "text-cyan-500", bg: "bg-cyan-500/10" },
-  { name: "Project Review Room", members: "4.9k", icon: Star, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-];
+const initialChatMessages = {
+  neha: [
+    { id: 1, from: "them", text: "Can you review my portfolio hero?", time: "2m" },
+    { id: 2, from: "me", text: "Yes, send the link. I will check hierarchy, CTA clarity, and mobile spacing.", time: "1m" },
+    { id: 3, from: "them", text: "Perfect. I mainly want it to feel more recruiter-ready.", time: "now" },
+    { id: 4, from: "them", type: "project", title: "Portfolio Hero Review", text: "CTA clarity, mobile spacing, visual hierarchy", time: "now" },
+  ],
+  rahul: [
+    { id: 1, from: "them", text: "I shared the Node API checklist.", time: "36m" },
+    { id: 2, from: "me", text: "Got it. I will compare it with the auth and rate-limit tasks.", time: "30m" },
+    { id: 3, from: "them", text: "Typing notes on refresh token expiry now...", time: "typing" },
+  ],
+  dev: [
+    { id: 1, from: "them", text: "Team call at 8 PM?", time: "1h" },
+    { id: 2, from: "me", text: "Works for me. Let us use the first 15 minutes for blockers.", time: "54m" },
+    { id: 3, from: "them", type: "project", title: "Tonight's Standup", text: "Blockers, demo order, deployment checklist", time: "48m" },
+  ],
+};
 
 const filters = ["For You", "Projects", "Doubts", "Jobs", "Events"];
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1";
@@ -383,6 +408,11 @@ function PeopleSuggestions({ authToken, isSignedIn }) {
   const people = isSignedIn && authToken
     ? directoryUsers
     : suggestions.map(normalizeDirectoryUser);
+  const collaborationPrompts = [
+    { label: "Project sprint", text: "Can we collaborate on a portfolio-ready project this week?" },
+    { label: "Pair review", text: "I would like to pair on a bug fix, code review, or feature sprint." },
+    { label: "Skill match", text: "Your skills match my project idea. Can we discuss roles and timeline?" }
+  ];
 
   const sendCollaborationRequest = async (person) => {
     if (!person.isBackendUser) {
@@ -426,9 +456,16 @@ function PeopleSuggestions({ authToken, isSignedIn }) {
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-darknavy-card">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-black text-slate-950 dark:text-white">Find Registered Users</h3>
-        <Users className="h-4 w-4 text-indigo-500" />
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-black text-slate-950 dark:text-white">Find Registered Users</h3>
+          <p className="mt-1 text-[11px] font-semibold leading-4 text-slate-500">
+            Search learners, send collaboration invites, and start project work with registered users.
+          </p>
+        </div>
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300">
+          <Users className="h-4 w-4" />
+        </span>
       </div>
 
       <div className="mb-4 space-y-3">
@@ -444,16 +481,31 @@ function PeopleSuggestions({ authToken, isSignedIn }) {
         </div>
         {isSignedIn && (
           <>
+            <div className="flex items-center justify-between rounded-xl bg-indigo-50 px-3 py-2 text-[11px] font-black text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
+              <span>{loading ? "Searching..." : `${people.length} registered match${people.length === 1 ? "" : "es"}`}</span>
+            </div>
             <input
               value={projectTitle}
               onChange={(event) => setProjectTitle(event.target.value)}
-              placeholder="Project title"
+              placeholder="Project title or sprint name"
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
             />
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {collaborationPrompts.map((prompt) => (
+                <button
+                  key={prompt.label}
+                  onClick={() => setInviteMessage(prompt.text)}
+                  className="shrink-0 rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-1.5 text-[10px] font-black text-indigo-600 transition hover:bg-indigo-100 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300"
+                  type="button"
+                >
+                  {prompt.label}
+                </button>
+              ))}
+            </div>
             <textarea
               value={inviteMessage}
               onChange={(event) => setInviteMessage(event.target.value)}
-              rows={3}
+              rows={2}
               placeholder="Write your collaboration message..."
               className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
             />
@@ -469,7 +521,7 @@ function PeopleSuggestions({ authToken, isSignedIn }) {
         {error && <p className="rounded-xl bg-rose-500/10 px-3 py-2 text-[11px] font-bold text-rose-700 dark:text-rose-300">{error}</p>}
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {people.length === 0 && !loading && (
           <p className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs font-bold text-slate-400 dark:border-slate-800">
             No registered users found.
@@ -478,8 +530,12 @@ function PeopleSuggestions({ authToken, isSignedIn }) {
         {people.map((person) => {
           const isConnected = connected.includes(person.id);
           return (
-            <div key={person.id} className="flex items-center gap-3">
-              <img src={person.avatar} alt="" className="h-11 w-11 rounded-2xl object-cover" />
+            <div key={person.id} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3 transition hover:border-indigo-200 hover:bg-white dark:border-slate-800 dark:bg-slate-950/40 dark:hover:border-indigo-500/30">
+              <div className="flex items-center gap-3">
+              <div className="relative shrink-0">
+                <img src={person.avatar} alt="" className="h-11 w-11 rounded-2xl object-cover" />
+                <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-950" />
+              </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-black text-slate-900 dark:text-white">{person.name}</p>
                 <p className="truncate text-xs font-semibold text-slate-500">{person.role}</p>
@@ -488,7 +544,7 @@ function PeopleSuggestions({ authToken, isSignedIn }) {
               <button
                 onClick={() => sendCollaborationRequest(person)}
                 disabled={sendingId === person.id}
-                className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
+                className={`flex h-9 items-center justify-center gap-1.5 rounded-xl px-3 text-[11px] font-black transition ${
                   isConnected
                     ? "bg-emerald-500 text-white"
                     : "border border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-500/30 dark:text-indigo-300 dark:hover:bg-indigo-500/10"
@@ -496,7 +552,9 @@ function PeopleSuggestions({ authToken, isSignedIn }) {
                 type="button"
               >
                 {isConnected ? <CheckCircle2 className="h-4 w-4" /> : sendingId === person.id ? <Send className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                <span className="hidden sm:inline">{isConnected ? "Sent" : sendingId === person.id ? "Sending" : "Invite"}</span>
               </button>
+              </div>
             </div>
           );
         })}
@@ -505,36 +563,228 @@ function PeopleSuggestions({ authToken, isSignedIn }) {
   );
 }
 
-function RightRail({ authToken, isSignedIn }) {
-  return (
-    <aside className="space-y-5 lg:sticky lg:top-24">
-      <PeopleSuggestions authToken={authToken} isSignedIn={isSignedIn} />
+function ChatThread({ thread, messages: threadMessages, viewer, onBack, onSend }) {
+  const [draft, setDraft] = useState("");
+  const bottomRef = useRef(null);
+  const quickReplies = ["Send portfolio link", "Let's pair tonight", "Can you share the repo?", "Ship it"];
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-darknavy-card">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-black text-slate-950 dark:text-white">Messages</h3>
-          <MessageSquare className="h-4 w-4 text-cyan-500" />
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [thread.id, threadMessages.length]);
+
+  const submit = (text = draft) => {
+    const cleanText = text.trim();
+    if (!cleanText) return;
+    onSend(thread.id, cleanText);
+    setDraft("");
+  };
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-darknavy-card">
+      <div className="flex items-center gap-3 border-b border-slate-100 bg-white/95 p-4 backdrop-blur dark:border-slate-800 dark:bg-darknavy-card/95">
+        <button
+          onClick={onBack}
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-300"
+          aria-label="Back to messages"
+          type="button"
+        >
+          <ChevronLeftIcon />
+        </button>
+        <span className="relative">
+          <img src={thread.avatar} alt="" className="h-11 w-11 rounded-2xl object-cover" />
+          <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-400 dark:border-darknavy-card" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-sm font-black text-slate-950 dark:text-white">{thread.name}</h3>
+          <p className="text-[11px] font-bold text-emerald-500">Online now • project chat</p>
         </div>
-        <div className="space-y-3">
-          {messages.map((message) => (
-            <button key={message.name} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-900" type="button">
-              <img src={message.avatar} alt="" className="h-10 w-10 rounded-xl object-cover" />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-xs font-black text-slate-900 dark:text-white">{message.name}</p>
-                  <span className="text-[10px] font-bold text-slate-400">{message.time}</span>
-                </div>
-                <p className="truncate text-xs font-semibold text-slate-500">{message.text}</p>
-              </div>
-              {message.unread > 0 && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-[10px] font-black text-white">
-                  {message.unread}
+        <button className="rounded-xl bg-indigo-50 px-3 py-2 text-[11px] font-black text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300" type="button">
+          Profile
+        </button>
+        <button className="hidden h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600 dark:text-slate-300 dark:hover:bg-slate-900 sm:flex" aria-label="Audio call" type="button">
+          <Phone className="h-4 w-4" />
+        </button>
+        <button className="hidden h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600 dark:text-slate-300 dark:hover:bg-slate-900 sm:flex" aria-label="Video call" type="button">
+          <Video className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="max-h-[520px] min-h-[430px] space-y-4 overflow-y-auto bg-slate-50/80 p-4 dark:bg-slate-950/40">
+        <div className="mx-auto flex w-fit items-center gap-1 rounded-full bg-white px-3 py-1 text-[10px] font-black text-slate-400 shadow-sm dark:bg-slate-900">
+          <ShieldCheck className="h-3 w-3 text-emerald-500" />
+          Student project chat
+        </div>
+        {threadMessages.map((message) => {
+          const isMine = message.from === "me";
+          const isProject = message.type === "project";
+          return (
+            <div key={message.id} className={`flex items-end gap-2 ${isMine ? "justify-end" : "justify-start"}`}>
+              {!isMine && <img src={thread.avatar} alt="" className="h-7 w-7 rounded-lg object-cover" />}
+              <div
+                className={`max-w-[82%] rounded-2xl px-4 py-2.5 text-xs font-semibold leading-5 shadow-sm ${
+                  isMine
+                    ? "rounded-br-md bg-indigo-600 text-white"
+                    : isProject
+                      ? "rounded-bl-md border border-emerald-100 bg-emerald-50 text-emerald-950 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-100"
+                      : "rounded-bl-md bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                }`}
+              >
+                {isProject && (
+                  <p className="mb-1 flex items-center gap-1 text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-300">
+                    <Star className="h-3 w-3" />
+                    {message.title}
+                  </p>
+                )}
+                <p>{message.text}</p>
+                <span className={`mt-1 flex items-center gap-1 text-[9px] font-black ${isMine ? "justify-end text-indigo-100" : "text-slate-400"}`}>
+                  {message.time}
+                  {isMine && <CheckCheck className="h-3 w-3" />}
                 </span>
-              )}
+              </div>
+              {isMine && <img src={viewer.avatar} alt="" className="h-7 w-7 rounded-lg object-cover" />}
+            </div>
+          );
+        })}
+        {thread.status === "typing" && (
+          <div className="flex items-center gap-2">
+            <img src={thread.avatar} alt="" className="h-7 w-7 rounded-lg object-cover" />
+            <div className="flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-4 py-3 shadow-sm dark:bg-slate-900">
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      <div className="space-y-3 border-t border-slate-100 p-4 dark:border-slate-800">
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {quickReplies.map((reply) => (
+            <button
+              key={reply}
+              onClick={() => submit(reply)}
+              className="shrink-0 rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-black text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-indigo-500/10"
+              type="button"
+            >
+              {reply}
             </button>
           ))}
         </div>
-      </section>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit();
+          }}
+          className="flex items-end gap-2"
+        >
+          <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition hover:text-indigo-600 dark:bg-slate-900" aria-label="Add emoji" type="button">
+            <Smile className="h-5 w-5" />
+          </button>
+          <button className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition hover:text-indigo-600 dark:bg-slate-900 sm:flex" aria-label="Attach file" type="button">
+            <Paperclip className="h-5 w-5" />
+          </button>
+          <textarea
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            rows={1}
+            placeholder={`Message ${thread.name}...`}
+            className="max-h-28 min-h-11 flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-800 outline-none transition focus:border-indigo-400 focus:bg-white dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+          />
+          <button className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition hover:text-indigo-600 dark:bg-slate-900 sm:flex" aria-label="Send camera snap" type="button">
+            <Camera className="h-5 w-5" />
+          </button>
+          <button
+            disabled={!draft.trim()}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 disabled:bg-slate-300 disabled:shadow-none dark:disabled:bg-slate-800"
+            type="submit"
+          >
+            {draft.trim() ? <Send className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </button>
+        </form>
+      </div>
+    </section>
+  );
+}
+
+function ChevronLeftIcon() {
+  return <span className="text-lg font-black leading-none">‹</span>;
+}
+
+function RightRail({ authToken, isSignedIn, viewer }) {
+  const [activeThreadId, setActiveThreadId] = useState("");
+  const [threadList, setThreadList] = useState(messages);
+  const [chatMessages, setChatMessages] = useState(initialChatMessages);
+  const activeThread = threadList.find((thread) => thread.id === activeThreadId);
+
+  const openThread = (thread) => {
+    setActiveThreadId(thread.id);
+    setThreadList((items) => items.map((item) => item.id === thread.id ? { ...item, unread: 0 } : item));
+  };
+
+  const sendMessage = (threadId, text) => {
+    const nextMessage = { id: Date.now(), from: "me", text, time: "now" };
+    setChatMessages((items) => ({
+      ...items,
+      [threadId]: [...(items[threadId] || []), nextMessage],
+    }));
+    setThreadList((items) => items.map((item) => (
+      item.id === threadId ? { ...item, text, time: "now", unread: 0 } : item
+    )));
+  };
+
+  return (
+    <aside className="space-y-5 lg:sticky lg:top-24">
+      {activeThread ? (
+        <ChatThread
+          thread={activeThread}
+          messages={chatMessages[activeThread.id] || []}
+          viewer={viewer}
+          onBack={() => setActiveThreadId("")}
+          onSend={sendMessage}
+        />
+      ) : (
+        <>
+          <PeopleSuggestions authToken={authToken} isSignedIn={isSignedIn} />
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-darknavy-card">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black text-slate-950 dark:text-white">Messages</h3>
+                <p className="text-[11px] font-bold text-slate-400">Tap a profile to open chat</p>
+              </div>
+              <MessageSquare className="h-4 w-4 text-cyan-500" />
+            </div>
+            <div className="space-y-3">
+              {threadList.map((message) => (
+                <button
+                  key={message.id}
+                  onClick={() => openThread(message)}
+                  className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-slate-50 focus:bg-indigo-50 focus:outline-none dark:hover:bg-slate-900 dark:focus:bg-indigo-500/10"
+                  type="button"
+                >
+                  <span className="relative">
+                    <img src={message.avatar} alt="" className="h-10 w-10 rounded-xl object-cover" />
+                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-400 dark:border-darknavy-card" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-xs font-black text-slate-900 dark:text-white">{message.name}</p>
+                      <span className="text-[10px] font-bold text-slate-400">{message.time}</span>
+                    </div>
+                    <p className="truncate text-[11px] font-bold text-indigo-500">{message.role}</p>
+                    <p className="truncate text-xs font-semibold text-slate-500">{message.text}</p>
+                  </div>
+                  {message.unread > 0 && (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-[10px] font-black text-white">
+                      {message.unread}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
     </aside>
   );
 }
@@ -543,26 +793,6 @@ function LeftRail({ user }) {
   return (
     <aside className="space-y-5 lg:sticky lg:top-24">
       <ProfileCard user={user} />
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-darknavy-card">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-black text-slate-950 dark:text-white">Study Circles</h3>
-          <Plus className="h-4 w-4 text-indigo-500" />
-        </div>
-        <div className="space-y-3">
-          {communities.map(({ name, members, icon: Icon, color, bg }) => (
-            <button key={name} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-900" type="button">
-              <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${bg} ${color}`}>
-                <Icon className="h-5 w-5" />
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-xs font-black text-slate-900 dark:text-white">{name}</span>
-                <span className="text-[11px] font-semibold text-slate-500">{members} members</span>
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
     </aside>
   );
 }
@@ -575,9 +805,10 @@ export default function Community({ authToken = "", userData = {}, isSignedIn = 
     name: userData.name || currentUser.name,
     role: userData.role || currentUser.role,
     avatar: userData.avatarUrl || currentUser.avatar,
+    cover: userData.coverUrl || currentUser.cover,
     headline: userData.bio || currentUser.headline,
-    followers: userData.followers || currentUser.followers,
-    connections: userData.following || currentUser.connections,
+    followers: userData.followers ?? 0,
+    connections: userData.following ?? 0,
   };
 
   const filteredPosts = useMemo(() => {
@@ -662,7 +893,7 @@ export default function Community({ authToken = "", userData = {}, isSignedIn = 
                 </div>
               </section>
             </div>
-            <RightRail authToken={authToken} isSignedIn={isSignedIn} />
+            <RightRail authToken={authToken} isSignedIn={isSignedIn} viewer={viewer} />
           </div>
         </div>
       </div>

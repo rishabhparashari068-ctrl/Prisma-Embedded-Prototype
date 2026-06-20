@@ -1,372 +1,513 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-  FolderGit2, Code2, Presentation, ChevronRight,
-  BookOpen, Layers, PlayCircle, ChevronLeft, FileCode, Folder
+  Code2, Layers, Cpu, Globe, Smartphone, Database, ShieldCheck,
+  Sparkles, ArrowRight, Eye, Download, Flame, ChevronRight, X, Mail, Phone, User, CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const GithubIcon = (props) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
-  </svg>
-);
+const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSeGeOHiOENm93xgiXILD1BdlNeMv1uhRkT1S2-PXuwYvhme9w/viewform?usp=publish-editor';
 
-export default function ProjectHub({ projects, userData, isLoggedIn, onJoinProject }) {
-  const [activeTab, setActiveTab] = useState('All'); // 'All' | 'Beginner' | 'Intermediate' | 'Advanced' | 'Industry-level'
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [activeSubTab, setActiveSubTab] = useState('blueprint'); // 'blueprint' | 'slides' | 'roadmap'
-  const [activeSlide, setActiveSlide] = useState(0);
+/* ---------------------------------------------------------------------
+   DESIGN TOKENS
+   Ink navy ground + warm paper panels + amber (get) / teal (free) / 
+   violet (popular) as the three signal colors. Monospace for tags
+   and metadata, Space Grotesk for display, Inter for body.
+--------------------------------------------------------------------- */
+const TOKENS = {
+  ink: '#0F1320',
+  inkSoft: '#161B2E',
+  paper: '#F6F4EF',
+  paperDim: '#EAE7DE',
+  line: 'rgba(246,244,239,0.10)',
+  amber: '#E8A33D',
+  teal: '#3FA796',
+  violet: '#8B7CF0',
+  textDim: 'rgba(246,244,239,0.55)',
+};
 
-  const tabs = ['All', 'Beginner', 'Intermediate', 'Advanced', 'Industry-level'];
+/* ---------------------------------------------------------------------
+   MOCK DATA — technology categories, each with three difficulty tiers.
+   First two Basic projects in every category are flagged free:true.
+--------------------------------------------------------------------- */
+const CATEGORIES = [
+  {
+    id: 'frontend',
+    label: 'Frontend',
+    icon: Globe,
+    blurb: 'Interfaces, interactions, and pixel-perfect builds.',
+  },
+  {
+    id: 'fullstack',
+    label: 'Full Stack',
+    icon: Layers,
+    blurb: 'End-to-end apps — client, server, and database wired together.',
+  },
+  {
+    id: 'aiml',
+    label: 'AI / ML',
+    icon: Sparkles,
+    blurb: 'Models, pipelines, and intelligent product features.',
+  },
+  {
+    id: 'backend',
+    label: 'Backend',
+    icon: Database,
+    blurb: 'APIs, services, and the systems that keep data honest.',
+  },
+  {
+    id: 'mobile',
+    label: 'Mobile',
+    icon: Smartphone,
+    blurb: 'Native and cross-platform apps for phones and tablets.',
+  },
+  {
+    id: 'embedded',
+    label: 'Embedded / IoT',
+    icon: Cpu,
+    blurb: 'Firmware and hardware-facing systems, close to the metal.',
+  },
+  {
+    id: 'security',
+    label: 'Cybersecurity',
+    icon: ShieldCheck,
+    blurb: 'Threat modeling, hardening, and defensive tooling.',
+  },
+];
 
-  const filteredProjects = activeTab === 'All'
-    ? projects
-    : projects.filter(p => p.difficulty === activeTab);
+const TIERS = ['Basic', 'Intermediate', 'Advanced'];
 
-  // Mock GitHub repository files list based on project category
-  const getMockRepoStructure = (track) => {
-    if (track.includes('Embedded')) {
-      return [
-        {
-          name: "src", type: "dir", children: [
-            { name: "main.c", type: "file", code: "#include \"stm32f4xx.h\"\n#include \"FreeRTOS.h\"\n#include \"task.h\"\n\nvoid vStabilizeTask(void *pvParams) {\n  for(;;) {\n    readMPU6050();\n    calculatePID();\n    adjustPWM();\n    vTaskDelay(pdMS_TO_TICKS(5));\n  }\n}" },
-            { name: "mpu6050.c", type: "file", code: "void readMPU6050() {\n  // Trigger I2C high-speed DMA transmission\n  HAL_I2C_Mem_Read_DMA(&hi2c1, MPU6050_ADDR, REG_DATA, 1, rx_buf, 6);\n}" },
-            { name: "pid.h", type: "file", code: "typedef struct {\n  float kp, ki, kd;\n  float error_prev, integral;\n} PID_Controller_t;" }
-          ]
-        },
-        { name: "FreeRTOSConfig.h", type: "file", code: "#define configUSE_PREEMPTION 1\n#define configCPU_CLOCK_HZ 168000000\n#define configTICK_RATE_HZ 1000" },
-        { name: "Makefile", type: "file", code: "CC = arm-none-eabi-gcc\nCFLAGS = -mcpu=cortex-m4 -mthumb -O2" }
-      ];
-    } else if (track.includes('AI')) {
-      return [
-        {
-          name: "pipelines", type: "dir", children: [
-            { name: "ingest.py", type: "file", code: "import pdfplumber\n\ndef parse_pdf(path):\n    with pdfplumber.open(path) as pdf:\n        return \"\\n\".join([page.extract_text() for page in pdf.pages])" },
-            { name: "embed.py", type: "file", code: "from openai import OpenAI\nclient = OpenAI()\n\ndef get_embedding(text, model=\"text-embedding-3-small\"):\n    return client.embeddings.create(input=[text], model=model).data[0].embedding" }
-          ]
-        },
-        { name: "app.py", type: "file", code: "from fastapi import FastAPI\napp = FastAPI()\n\n@app.post(\"/query\")\nasync def semantic_query(prompt: str):\n    vector = get_embedding(prompt)\n    results = index.query(vector=vector, top_k=5)\n    return generate_response(prompt, results)" },
-        { name: "requirements.txt", type: "file", code: "fastapi==0.110.0\nopenai==1.12.0\npinecone-client==3.1.0\npdfplumber==0.10.4" }
-      ];
-    } else {
-      // Web Dev structure
-      return [
-        {
-          name: "src", type: "dir", children: [
-            {
-              name: "components", type: "dir", children: [
-                { name: "BentoGrid.jsx", type: "file", code: "import { motion } from 'framer-motion';\n\nexport const BentoItem = ({ title, children }) => (\n  <motion.div whileHover={{ y: -5 }} className=\"p-6 rounded-3xl border\">\n    <h4>{title}</h4>\n    {children}\n  </motion.div>\n);" }
-              ]
-            },
-            { name: "App.jsx", type: "file", code: "import React from 'react';\nimport { BentoItem } from './components/BentoGrid';\n\nexport default function App() {\n  return <div className=\"grid grid-cols-3 gap-4\"><BentoItem title=\"Hero\" /></div>;\n}" }
-          ]
-        },
-        { name: "tailwind.config.js", type: "file", code: "module.exports = {\n  content: [\"./src/**/*.{js,jsx}\"],\n  theme: { extend: {} },\n}" },
-        { name: "package.json", type: "file", code: "{\n  \"name\": \"bento-portfolio\",\n  \"dependencies\": {\n    \"framer-motion\": \"^11.0.0\",\n    \"react\": \"^18.2.0\"\n  }\n}" }
-      ];
-    }
-  };
+function makeProject(id, title, category, tier, desc, price, popular = false, free = false) {
+  return { id, title, category, tier, desc, price: 0, popular, free: true };
+}
 
-  const [activeFileCode, setActiveFileCode] = useState(null);
+const PROJECTS = [
+  // FRONTEND
+  makeProject('fe-b1', 'Bento Grid Portfolio', 'frontend', 'Basic', 'A responsive portfolio site built with a bento-box layout and Framer Motion micro-interactions.', 0, true, true),
+  makeProject('fe-b2', 'Markdown Notes Editor', 'frontend', 'Basic', 'A live markdown editor with syntax preview and local draft autosave.', 0, false, true),
+  makeProject('fe-b3', 'Recipe Card Generator', 'frontend', 'Basic', 'Form-driven recipe cards with print-ready styling and unit conversion.', 499),
+  makeProject('fe-i1', 'Kanban Task Board', 'frontend', 'Intermediate', 'Drag-and-drop kanban board with column persistence and keyboard accessibility.', 999, true),
+  makeProject('fe-i2', 'Realtime Chat UI', 'frontend', 'Intermediate', 'A chat interface with typing indicators, optimistic sends, and emoji reactions.', 899),
+  makeProject('fe-a1', 'Design System Playground', 'frontend', 'Advanced', 'A themeable component library with live token editing and visual regression snapshots.', 1799),
+  makeProject('fe-a2', '3D Product Configurator', 'frontend', 'Advanced', 'Three.js powered configurator with real-time material and lighting swaps.', 2199, true),
 
-  const handleProjectSelect = (p) => {
-    setSelectedProject(p);
-    setActiveSubTab('blueprint');
-    setActiveSlide(0);
-    setActiveFileCode(null);
-  };
+  // FULL STACK
+  makeProject('fs-b1', 'Bookmark Manager', 'fullstack', 'Basic', 'Save, tag, and search bookmarks with a Node API and a Postgres-backed store.', 0, false, true),
+  makeProject('fs-b2', 'Polling App', 'fullstack', 'Basic', 'Create polls and vote in real time using WebSockets and a lightweight REST layer.', 0, false, true),
+  makeProject('fs-b3', 'Expense Splitter', 'fullstack', 'Basic', 'Split shared expenses across a group with running balances per person.', 599),
+  makeProject('fs-i1', 'Job Board Platform', 'fullstack', 'Intermediate', 'Listings, applications, and an employer dashboard backed by role-based auth.', 1299, true),
+  makeProject('fs-i2', 'Booking & Scheduling System', 'fullstack', 'Intermediate', 'Calendar-based booking with conflict detection and email confirmations.', 1199),
+  makeProject('fs-a1', 'Multi-Tenant SaaS Starter', 'fullstack', 'Advanced', 'Subscription billing, tenant isolation, and an admin control plane.', 2899, true),
+  makeProject('fs-a2', 'Marketplace with Escrow Payments', 'fullstack', 'Advanced', 'Two-sided marketplace with staged payouts and dispute handling.', 3199),
 
+  // AI/ML
+  makeProject('ai-b1', 'Sentiment Classifier API', 'aiml', 'Basic', 'A FastAPI service that scores text sentiment using a fine-tuned small model.', 0, false, true),
+  makeProject('ai-b2', 'Image Caption Generator', 'aiml', 'Basic', 'Upload an image and get a generated caption using a vision-language model.', 0, true, true),
+  makeProject('ai-b3', 'Spam Email Detector', 'aiml', 'Basic', 'Classic ML pipeline with TF-IDF features and a logistic regression baseline.', 549),
+  makeProject('ai-i1', 'PDF Knowledge Assistant', 'aiml', 'Intermediate', 'RAG pipeline over uploaded PDFs with citation-aware answers.', 1399, true),
+  makeProject('ai-i2', 'Recommendation Engine', 'aiml', 'Intermediate', 'Collaborative filtering recommender with a feedback loop for re-ranking.', 1249),
+  makeProject('ai-a1', 'Multi-Agent Research Pipeline', 'aiml', 'Advanced', 'Coordinated agents that plan, search, and synthesize long-form reports.', 2999, true),
+  makeProject('ai-a2', 'On-Device Vision Model', 'aiml', 'Advanced', 'Quantized model deployment for real-time inference on edge hardware.', 2699),
+
+  // BACKEND
+  makeProject('be-b1', 'URL Shortener Service', 'backend', 'Basic', 'A REST API for shortening and tracking link clicks, with rate limiting.', 0, false, true),
+  makeProject('be-b2', 'Notes API with Auth', 'backend', 'Basic', 'JWT-secured CRUD API for notes with per-user data isolation.', 0, false, true),
+  makeProject('be-b3', 'Webhook Relay Service', 'backend', 'Basic', 'Receives, queues, and retries webhook deliveries to downstream consumers.', 599),
+  makeProject('be-i1', 'Event-Driven Order System', 'backend', 'Intermediate', 'Order processing with a message queue and idempotent event handlers.', 1349, true),
+  makeProject('be-i2', 'Rate-Limited API Gateway', 'backend', 'Intermediate', 'A gateway service with per-key throttling, caching, and request logging.', 1199),
+  makeProject('be-a1', 'Distributed Job Scheduler', 'backend', 'Advanced', 'A horizontally scalable scheduler with leader election and retries.', 2799, true),
+  makeProject('be-a2', 'Microservices Mesh Demo', 'backend', 'Advanced', 'Service mesh with discovery, circuit breaking, and distributed tracing.', 3099),
+
+  // MOBILE
+  makeProject('mb-b1', 'Habit Tracker App', 'mobile', 'Basic', 'Cross-platform habit tracker with streaks and local notifications.', 0, false, true),
+  makeProject('mb-b2', 'Offline Grocery List', 'mobile', 'Basic', 'A grocery list app that works fully offline with background sync.', 0, false, true),
+  makeProject('mb-b3', 'Currency Converter', 'mobile', 'Basic', 'Live exchange rates with offline-cached fallback values.', 449),
+  makeProject('mb-i1', 'Fitness Session Logger', 'mobile', 'Intermediate', 'Workout logging with charts, history, and Apple Health-style sync.', 1099, true),
+  makeProject('mb-i2', 'Marketplace App with Chat', 'mobile', 'Intermediate', 'Buy and sell listings with in-app messaging between buyers and sellers.', 1349),
+  makeProject('mb-a1', 'AR Furniture Placer', 'mobile', 'Advanced', 'Augmented reality app for previewing furniture in real rooms.', 2599, true),
+  makeProject('mb-a2', 'Offline-First Field Survey App', 'mobile', 'Advanced', 'Survey collection app with conflict-resolved sync for spotty connectivity.', 2399),
+
+  // EMBEDDED
+  makeProject('em-b1', 'Smart Thermostat Firmware', 'embedded', 'Basic', 'Temperature control loop with a basic PID controller on a microcontroller.', 0, false, true),
+  makeProject('em-b2', 'Motion-Activated Light', 'embedded', 'Basic', 'PIR-sensor-driven lighting system with low-power sleep states.', 0, false, true),
+  makeProject('em-b3', 'Weather Station Logger', 'embedded', 'Basic', 'Sensor logging to an SD card with timestamped readings.', 549),
+  makeProject('em-i1', 'Self-Balancing Robot', 'embedded', 'Intermediate', 'IMU-stabilized two-wheel robot using FreeRTOS task scheduling.', 1399, true),
+  makeProject('em-i2', 'CAN Bus Diagnostics Tool', 'embedded', 'Intermediate', 'Reads and decodes vehicle CAN bus frames into human-readable diagnostics.', 1249),
+  makeProject('em-a1', 'Drone Flight Controller', 'embedded', 'Advanced', 'Custom flight controller firmware with sensor fusion and PID tuning.', 2999, true),
+  makeProject('em-a2', 'Industrial PLC Bridge', 'embedded', 'Advanced', 'Bridges legacy PLC protocols to a modern MQTT telemetry pipeline.', 2799),
+
+  // SECURITY
+  makeProject('sc-b1', 'Password Strength Auditor', 'security', 'Basic', 'Checks password strength against breach datasets and entropy heuristics.', 0, false, true),
+  makeProject('sc-b2', 'Port Scanner CLI', 'security', 'Basic', 'A configurable network port scanner with service fingerprinting.', 0, false, true),
+  makeProject('sc-b3', 'Log Anomaly Detector', 'security', 'Basic', 'Flags unusual login patterns from server access logs.', 599),
+  makeProject('sc-i1', 'Phishing Email Detector', 'security', 'Intermediate', 'Header and content heuristics to flag likely phishing emails.', 1299, true),
+  makeProject('sc-i2', 'Web App Vulnerability Scanner', 'security', 'Intermediate', 'Automated scanning for common OWASP-class misconfigurations.', 1399),
+  makeProject('sc-a1', 'Zero Trust Access Gateway', 'security', 'Advanced', 'Identity-aware proxy enforcing per-request policy decisions.', 2899, true),
+  makeProject('sc-a2', 'SOC Alert Correlation Engine', 'security', 'Advanced', 'Correlates multi-source alerts into prioritized incident clusters.', 2999),
+];
+
+const TIER_COLOR = {
+  Basic: TOKENS.teal,
+  Intermediate: TOKENS.amber,
+  Advanced: TOKENS.violet,
+};
+
+function formatPrice(price) {
+  if (price === 0) return 'Free';
+  return `₹${price}`;
+}
+
+/* ---------------------------------------------------------------------
+   PROJECT CARD — terminal-card signature: colored left stripe keyed to
+   tier, monospace metadata row, See / Get actions.
+--------------------------------------------------------------------- */
+function ProjectCard({ project, onSee, enrolled = false }) {
+  const stripe = TIER_COLOR[project.tier];
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div
+      className="relative flex flex-col justify-between rounded-2xl overflow-hidden border transition-all hover:-translate-y-0.5"
+      style={{
+        background: TOKENS.inkSoft,
+        borderColor: TOKENS.line,
+      }}
+    >
+      <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: stripe }} />
 
-      {/* Header Widget */}
-      <div className="glass-panel p-6 rounded-3xl flex justify-between items-center flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-950 dark:text-white flex items-center gap-2">
-            <FolderGit2 className="w-6 h-6 text-brand-primary" />
-            Industrial Project Hub
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Build production-grade applications with verified GitHub structures and PPT delivery slides.
-          </p>
+      <div className="p-5 pl-6">
+        <div className="flex items-center justify-between mb-3">
+          <span
+            className="text-[10px] font-mono tracking-wider uppercase px-2 py-1 rounded-md"
+            style={{ color: stripe, background: `${stripe}1A` }}
+          >
+            {project.tier}
+          </span>
+          <div className="flex items-center gap-1.5">
+            {project.popular && (
+              <span
+                className="text-[9px] font-mono tracking-wider uppercase px-2 py-1 rounded-md flex items-center gap-1"
+                style={{ color: TOKENS.violet, background: `${TOKENS.violet}1A` }}
+              >
+                <Flame className="w-3 h-3" /> Popular
+              </span>
+            )}
+            {project.free && (
+              <span
+                className="text-[9px] font-mono tracking-wider uppercase px-2 py-1 rounded-md"
+                style={{ color: TOKENS.teal, background: `${TOKENS.teal}1A` }}
+              >
+                Free
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Tab row */}
-        <div className="flex overflow-x-auto gap-1 bg-slate-100 dark:bg-slate-900/60 p-1 rounded-xl border border-slate-205 dark:border-slate-800">
-          {tabs.map((t, i) => (
-            <button
-              key={i}
-              onClick={() => setActiveTab(t)}
-              className={`px-4 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all shrink-0 ${activeTab === t ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        <h3
+          className="text-base font-bold leading-snug mb-2"
+          style={{ color: TOKENS.paper, fontFamily: "'Space Grotesk', sans-serif" }}
+        >
+          {project.title}
+        </h3>
+        <p className="text-[13px] leading-relaxed" style={{ color: TOKENS.textDim }}>
+          {project.desc}
+        </p>
       </div>
 
-      {/* Grid: Projects list */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredProjects.map(proj => (
-          <div
-            key={proj.id}
-            className="glass-panel p-6 rounded-2xl flex flex-col justify-between hover:border-slate-350 dark:hover:border-slate-700 transition-all group"
+      <div
+        className="flex items-center justify-end px-6 py-3.5 border-t"
+        style={{ borderColor: TOKENS.line }}
+      >
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onSee(project)}
+            className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+            style={{ color: TOKENS.paper, background: 'rgba(246,244,239,0.08)' }}
           >
-            <div>
-              <div className="flex justify-between items-start mb-4">
-                <span className={`text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider ${proj.difficulty === 'Beginner' ? 'bg-green-500/10 text-green-500' :
-                  proj.difficulty === 'Intermediate' ? 'bg-blue-500/10 text-blue-500' :
-                    proj.difficulty === 'Advanced' ? 'bg-purple-500/10 text-brand-secondary' :
-                      'bg-cyan-500/10 text-brand-accent'
-                  }`}>
-                  {proj.difficulty}
-                </span>
+            <Eye className="w-3.5 h-3.5" /> See
+          </button>
+          <a
+            href={GOOGLE_FORM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+            style={{ color: TOKENS.ink, background: TOKENS.amber }}
+          >
+            {enrolled ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />} {enrolled ? 'Enrolled' : 'Get'}
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-                <span className="text-[10px] font-bold text-slate-400">
-                  {proj.track}
-                </span>
-              </div>
-
-              <h3 className="text-xl font-extrabold text-slate-950 dark:text-white mb-2 leading-tight group-hover:text-brand-primary transition-colors">
-                {proj.title}
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-650 dark:text-slate-400 leading-relaxed mb-6">
-                {proj.description}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-slate-200/50 dark:border-slate-800/40">
-              <button
-                onClick={() => handleProjectSelect(proj)}
-                className="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-650 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-md shadow-indigo-500/5 transition-all"
-              >
-                Open Workspace
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+/* ---------------------------------------------------------------------
+   TIER SECTION — groups projects of one difficulty within a category.
+--------------------------------------------------------------------- */
+function TierSection({ tier, projects, onSee, enrolledProjects = [] }) {
+  if (projects.length === 0) return null;
+  const color = TIER_COLOR[tier];
+  return (
+    <div className="mb-10">
+      <div className="flex items-center gap-3 mb-4">
+        <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+        <h3
+          className="text-lg font-bold"
+          style={{ color: TOKENS.paper, fontFamily: "'Space Grotesk', sans-serif" }}
+        >
+          {tier}
+        </h3>
+        <span className="text-[11px] font-mono" style={{ color: TOKENS.textDim }}>
+          {projects.length} project{projects.length !== 1 ? 's' : ''}
+        </span>
+        <div className="flex-1 h-px" style={{ background: TOKENS.line }} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {projects.map((p) => (
+          <ProjectCard key={p.id} project={p} onSee={onSee} enrolled={enrolledProjects.includes(p.id)} />
         ))}
       </div>
+    </div>
+  );
+}
 
-      {/* Dynamic Project Workspace Interactive Overlay */}
-      <AnimatePresence>
-        {selectedProject && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center p-4">
-            <motion.div
-              initial={{ scale: 0.96, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.96, opacity: 0 }}
-              className="bg-white dark:bg-darknavy-card w-full max-w-4xl p-6 sm:p-8 rounded-3xl border border-slate-250 dark:border-slate-805 shadow-xl relative max-h-[90vh] flex flex-col justify-between overflow-hidden"
-            >
-
-              {/* Top Row close */}
-              <div className="flex justify-between items-center mb-6 shrink-0">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-450">{selectedProject.difficulty} &bull; {selectedProject.track}</span>
-                  <h3 className="text-xl font-extrabold text-slate-950 dark:text-white leading-tight mt-1">
-                    {selectedProject.title}
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setSelectedProject(null)}
-                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-450 dark:text-slate-550 transition-colors"
+/* ---------------------------------------------------------------------
+   DETAIL MODAL — shown on "See"
+--------------------------------------------------------------------- */
+function DetailModal({ project, onClose }) {
+  if (!project) return null;
+  const stripe = TIER_COLOR[project.tier];
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+        <motion.div
+          initial={{ scale: 0.96, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.96, opacity: 0 }}
+          className="w-full max-w-lg rounded-2xl overflow-hidden border relative"
+          style={{ background: TOKENS.inkSoft, borderColor: TOKENS.line }}
+        >
+          <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ background: stripe }} />
+          <div className="p-6 pl-7">
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-[10px] font-mono tracking-wider uppercase px-2 py-1 rounded-md"
+                  style={{ color: stripe, background: `${stripe}1A` }}
                 >
-                  <span className="text-xl font-bold">&times;</span>
-                </button>
-              </div>
-
-              {/* Sub-tabs row */}
-              <div className="flex gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/60 rounded-xl border border-slate-200/50 dark:border-slate-800/40 w-fit shrink-0 mb-6 text-xs">
-                <button
-                  onClick={() => setActiveSubTab('blueprint')}
-                  className={`px-4 py-2 font-bold rounded-lg flex items-center gap-1.5 transition-all ${activeSubTab === 'blueprint' ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-850 dark:hover:text-slate-200'}`}
-                >
-                  <Code2 className="w-4 h-4" /> GitHub Blueprint
-                </button>
-                <button
-                  onClick={() => setActiveSubTab('slides')}
-                  className={`px-4 py-2 font-bold rounded-lg flex items-center gap-1.5 transition-all ${activeSubTab === 'slides' ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-850 dark:hover:text-slate-200'}`}
-                >
-                  <Presentation className="w-4 h-4" /> PPT Slide Showcase
-                </button>
-                <button
-                  onClick={() => setActiveSubTab('roadmap')}
-                  className={`px-4 py-2 font-bold rounded-lg flex items-center gap-1.5 transition-all ${activeSubTab === 'roadmap' ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-850 dark:hover:text-slate-200'}`}
-                >
-                  <BookOpen className="w-4 h-4" /> Project Roadmap
-                </button>
-              </div>
-
-              {/* Sub-tab interactive contents */}
-              <div className="flex-1 overflow-y-auto mb-6 pr-1 min-h-[250px] max-h-[450px]">
-
-                {/* 1. GITHUB EXPLORER COMPONENT */}
-                {activeSubTab === 'blueprint' && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full items-stretch">
-
-                    {/* Repository Folder List */}
-                    <div className="border border-slate-200/50 dark:border-slate-800/40 rounded-2xl p-4 space-y-3 bg-slate-50/50 dark:bg-slate-900/40 text-xs max-h-[280px] overflow-y-auto">
-                      <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 pb-2 border-b border-slate-200 dark:border-slate-800/40">
-                        <FolderGit2 className="w-4.5 h-4.5 text-indigo-500" /> Folder Structure
-                      </h4>
-
-                      <div className="space-y-2 font-semibold">
-                        {getMockRepoStructure(selectedProject.track).map((item, idx) => (
-                          <div key={idx} className="space-y-1">
-                            {item.type === 'dir' ? (
-                              <div>
-                                <div className="flex items-center gap-1 text-indigo-650 dark:text-indigo-400">
-                                  <Folder className="w-4 h-4 fill-current opacity-70" />
-                                  <span>{item.name}</span>
-                                </div>
-                                <div className="pl-4 border-l border-slate-200 dark:border-slate-800/40 mt-1 space-y-1.5">
-                                  {item.children.map((child, cIdx) => (
-                                    <button
-                                      key={cIdx}
-                                      onClick={() => setActiveFileCode(child)}
-                                      className="flex items-center gap-1 text-slate-600 dark:text-slate-350 hover:underline hover:text-indigo-650 dark:hover:text-brand-accent text-left w-full"
-                                    >
-                                      <FileCode className="w-3.5 h-3.5" />
-                                      <span>{child.name}</span>
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => setActiveFileCode(item)}
-                                className="flex items-center gap-1 text-slate-700 dark:text-slate-300 hover:underline hover:text-indigo-650 dark:hover:text-brand-accent text-left w-full"
-                              >
-                                <FileCode className="w-4 h-4" />
-                                <span>{item.name}</span>
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* File Code Viewer Canvas */}
-                    <div className="md:col-span-2 border border-slate-200/50 dark:border-slate-800/40 rounded-2xl p-4 bg-slate-950 text-slate-200 flex flex-col justify-between font-mono text-[11px] leading-relaxed max-h-[280px] overflow-y-auto">
-                      <div>
-                        <div className="flex justify-between items-center pb-2 border-b border-slate-800 text-[10px] font-sans font-bold text-slate-500 mb-3">
-                          <span>{activeFileCode ? `FILE: ${activeFileCode.name}` : 'BLUEPRINT INTEGRITY CANVAS'}</span>
-                          <span className="text-emerald-500">Read-Only</span>
-                        </div>
-                        <pre className="whitespace-pre-wrap select-text">
-                          {activeFileCode ? activeFileCode.code : '// Click a file in the folder listing structure to load structural code architecture...'}
-                        </pre>
-                      </div>
-                    </div>
-
-                  </div>
-                )}
-
-                {/* 2. PPT SLIDES SHOWCASE */}
-                {activeSubTab === 'slides' && (
-                  <div className="flex flex-col items-center">
-                    <div className="w-full max-w-xl aspect-[16/9] bg-gradient-to-tr from-slate-900 to-indigo-950 text-white rounded-3xl p-6 sm:p-8 flex flex-col justify-between border border-indigo-500/20 shadow-md relative overflow-hidden">
-                      {/* Decorative backdrop */}
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-xl"></div>
-
-                      <div className="flex justify-between items-start text-[10px] font-bold tracking-widest text-brand-accent uppercase">
-                        <span>Project Pitch Deck</span>
-                        <span>Slide {activeSlide + 1} / {selectedProject.pptSlides.length}</span>
-                      </div>
-
-                      <div className="my-auto py-4 text-center">
-                        <h4 className="text-lg sm:text-xl font-extrabold leading-snug">
-                          {selectedProject.pptSlides[activeSlide]}
-                        </h4>
-                      </div>
-
-                      <div className="text-[10px] text-slate-400 font-medium">
-                        Prisma Embedded Codes &copy; {new Date().getFullYear()}
-                      </div>
-                    </div>
-
-                    {/* Pagination buttons */}
-                    <div className="flex gap-4 items-center mt-6">
-                      <button
-                        disabled={activeSlide === 0}
-                        onClick={() => setActiveSlide(prev => Math.max(prev - 1, 0))}
-                        className={`p-2.5 rounded-xl border flex items-center justify-center transition-all ${activeSlide === 0 ? 'border-slate-200 text-slate-300 cursor-not-allowed dark:border-slate-850 dark:text-slate-700' : 'border-slate-300 hover:bg-slate-50 text-slate-700 dark:border-slate-800 dark:hover:bg-slate-900 dark:text-slate-300'}`}
-                      >
-                        <ChevronLeft className="w-5 h-5" />
-                      </button>
-                      <button
-                        disabled={activeSlide === selectedProject.pptSlides.length - 1}
-                        onClick={() => setActiveSlide(prev => Math.min(prev + 1, selectedProject.pptSlides.length - 1))}
-                        className={`p-2.5 rounded-xl border flex items-center justify-center transition-all ${activeSlide === selectedProject.pptSlides.length - 1 ? 'border-slate-200 text-slate-300 cursor-not-allowed dark:border-slate-850 dark:text-slate-700' : 'border-slate-300 hover:bg-slate-50 text-slate-700 dark:border-slate-800 dark:hover:bg-slate-900 dark:text-slate-300'}`}
-                      >
-                        <ChevronRight className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. PROJECT ROADMAP STEPS */}
-                {activeSubTab === 'roadmap' && (
-                  <div className="max-w-xl mx-auto space-y-4">
-                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-3">Milestone Delivery Plan</h4>
-
-                    <div className="space-y-3 relative before:absolute before:top-2 before:bottom-2 before:left-3.5 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
-                      {selectedProject.roadmaps.map((step, idx) => (
-                        <div key={idx} className="flex gap-3 items-start relative z-10">
-                          <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-brand-primary border border-indigo-500/20 font-bold text-xs flex items-center justify-center shrink-0">
-                            {idx + 1}
-                          </div>
-                          <div className="p-3 bg-slate-105/50 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/40 rounded-xl flex-1 text-xs">
-                            <span className="font-bold text-slate-900 dark:text-white block">Phase {idx + 1}</span>
-                            <p className="text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{step}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              </div>
-
-              {/* Documentation Guide alert */}
-              <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/50 dark:border-slate-805 text-xs text-slate-600 dark:text-slate-350 shrink-0 flex gap-2.5">
-                <BookOpen className="w-5 h-5 text-indigo-550 shrink-0" />
-                <div>
-                  <strong>Compilation Documentation Checklist:</strong>
-                  <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-405">{selectedProject.docPreview}</p>
-                </div>
-              </div>
-
-              {/* Join / Start Project Actions */}
-              <div className="flex justify-end gap-3 mt-5 shrink-0 border-t border-slate-200/40 dark:border-slate-800/40 pt-4">
-                {isLoggedIn && (
-                  <button
-                    disabled={userData?.projects?.some(p => p.projectId === selectedProject.id)}
-                    onClick={() => onJoinProject && onJoinProject(selectedProject.id, selectedProject.title)}
-                    className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${userData?.projects?.some(p => p.projectId === selectedProject.id)
-                        ? 'bg-emerald-500/10 text-emerald-500 cursor-default'
-                        : 'bg-indigo-650 hover:bg-indigo-700 text-white shadow-md'
-                      }`}
+                  {project.tier}
+                </span>
+                {project.free && (
+                  <span
+                    className="text-[9px] font-mono tracking-wider uppercase px-2 py-1 rounded-md"
+                    style={{ color: TOKENS.teal, background: `${TOKENS.teal}1A` }}
                   >
-                    {userData?.projects?.some(p => p.projectId === selectedProject.id) ? (
-                      '✓ Active on Dashboard'
-                    ) : (
-                      'Start Project Blueprint'
-                    )}
-                  </button>
+                    Free
+                  </span>
                 )}
-                <button
-                  onClick={() => setSelectedProject(null)}
-                  className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-all"
-                >
-                  Close Workspace
-                </button>
               </div>
+              <button onClick={onClose} style={{ color: TOKENS.textDim }}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-            </motion.div>
+            <h2
+              className="text-2xl font-bold mb-2"
+              style={{ color: TOKENS.paper, fontFamily: "'Space Grotesk', sans-serif" }}
+            >
+              {project.title}
+            </h2>
+            <p className="text-sm leading-relaxed mb-6" style={{ color: TOKENS.textDim }}>
+              {project.desc}
+            </p>
+
+            <div className="flex items-center justify-end pt-4 border-t" style={{ borderColor: TOKENS.line }}>
+              <a
+                href={GOOGLE_FORM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-xl"
+                style={{ color: TOKENS.ink, background: TOKENS.amber }}
+              >
+                <Download className="w-4 h-4" /> Get this project
+              </a>
+            </div>
           </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+}
+
+/* ---------------------------------------------------------------------
+   MAIN COMPONENT
+--------------------------------------------------------------------- */
+export default function ProjectHub() {
+  const [activeCategory, setActiveCategory] = useState(null); // null = landing/category-grid view
+  const [seeProject, setSeeProject] = useState(null);
+
+  const popularProjects = useMemo(() => PROJECTS.filter((p) => p.popular), []);
+
+  const categoryProjects = useMemo(() => {
+    if (!activeCategory) return [];
+    return PROJECTS.filter((p) => p.category === activeCategory);
+  }, [activeCategory]);
+
+  const grouped = useMemo(() => {
+    const g = { Basic: [], Intermediate: [], Advanced: [] };
+    categoryProjects.forEach((p) => g[p.tier].push(p));
+    return g;
+  }, [categoryProjects]);
+
+  const activeCategoryData = CATEGORIES.find((c) => c.id === activeCategory);
+
+  return (
+    <div className="min-h-screen w-full" style={{ background: TOKENS.ink }}>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet"
+      />
+
+      {/* ============ HERO ============ */}
+      <div className="px-6 pt-16 pb-10 max-w-6xl mx-auto">
+        <div className="flex items-center gap-2 mb-4 text-[11px] font-mono uppercase tracking-widest" style={{ color: TOKENS.amber }}>
+          <Code2 className="w-3.5 h-3.5" /> Project Catalog
+        </div>
+        <h1
+          className="text-4xl sm:text-5xl font-bold leading-[1.05] mb-4"
+          style={{ color: TOKENS.paper, fontFamily: "'Space Grotesk', sans-serif" }}
+        >
+          Buildable projects,<br />sorted by what they'll teach you.
+        </h1>
+        <p className="text-sm sm:text-base max-w-xl leading-relaxed" style={{ color: TOKENS.textDim }}>
+          Pick a technology, then a difficulty. Every category opens with two free starter builds —
+          see the brief before you commit, get the full blueprint when you're ready.
+        </p>
+      </div>
+
+      {/* ============ CATEGORY RAIL ============ */}
+      <div className="px-6 max-w-6xl mx-auto mb-4">
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {activeCategory && (
+            <button
+              onClick={() => setActiveCategory(null)}
+              className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold border"
+              style={{ borderColor: TOKENS.line, color: TOKENS.textDim }}
+            >
+              All categories
+            </button>
+          )}
+          {CATEGORIES.map((cat) => {
+            const Icon = cat.icon;
+            const isActive = activeCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all"
+                style={{
+                  borderColor: isActive ? TOKENS.amber : TOKENS.line,
+                  background: isActive ? `${TOKENS.amber}1A` : 'transparent',
+                  color: isActive ? TOKENS.amber : TOKENS.paper,
+                }}
+              >
+                <Icon className="w-3.5 h-3.5" /> {cat.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ============ MAIN CONTENT ============ */}
+      <div className="px-6 max-w-6xl mx-auto pb-20">
+        {!activeCategory ? (
+          <>
+            {/* Category grid (landing state) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
+              {CATEGORIES.map((cat) => {
+                const Icon = cat.icon;
+                const count = PROJECTS.filter((p) => p.category === cat.id).length;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setActiveCategory(cat.id)}
+                    className="text-left p-5 rounded-2xl border transition-all hover:-translate-y-0.5"
+                    style={{ background: TOKENS.inkSoft, borderColor: TOKENS.line }}
+                  >
+                    <Icon className="w-5 h-5 mb-3" style={{ color: TOKENS.amber }} />
+                    <h3
+                      className="text-base font-bold mb-1.5"
+                      style={{ color: TOKENS.paper, fontFamily: "'Space Grotesk', sans-serif" }}
+                    >
+                      {cat.label}
+                    </h3>
+                    <p className="text-[12.5px] leading-relaxed mb-3" style={{ color: TOKENS.textDim }}>
+                      {cat.blurb}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-mono" style={{ color: TOKENS.textDim }}>
+                        {count} projects
+                      </span>
+                      <ChevronRight className="w-4 h-4" style={{ color: TOKENS.amber }} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Most Popular Projects (scroll-revealed section) */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Flame className="w-4 h-4" style={{ color: TOKENS.violet }} />
+                <h2
+                  className="text-xl font-bold"
+                  style={{ color: TOKENS.paper, fontFamily: "'Space Grotesk', sans-serif" }}
+                >
+                  Most popular projects
+                </h2>
+              </div>
+              <p className="text-[13px] mb-5" style={{ color: TOKENS.textDim }}>
+                What most builders are starting with this month, across every category.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {popularProjects.map((p) => (
+                  <ProjectCard key={p.id} project={p} onSee={setSeeProject} enrolled={false} />
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Category header */}
+            <div className="flex items-center gap-3 mb-8">
+              {activeCategoryData && (
+                <>
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style={{ background: `${TOKENS.amber}1A` }}
+                  >
+                    <activeCategoryData.icon className="w-5 h-5" style={{ color: TOKENS.amber }} />
+                  </div>
+                  <div>
+                    <h2
+                      className="text-2xl font-bold"
+                      style={{ color: TOKENS.paper, fontFamily: "'Space Grotesk', sans-serif" }}
+                    >
+                      {activeCategoryData.label}
+                    </h2>
+                    <p className="text-[12.5px]" style={{ color: TOKENS.textDim }}>
+                      {activeCategoryData.blurb}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <TierSection tier="Basic" projects={grouped.Basic} onSee={setSeeProject} />
+            <TierSection tier="Intermediate" projects={grouped.Intermediate} onSee={setSeeProject} />
+            <TierSection tier="Advanced" projects={grouped.Advanced} onSee={setSeeProject} />
+          </>
         )}
-      </AnimatePresence>
+      </div>
+
+      <DetailModal project={seeProject} onClose={() => setSeeProject(null)} />
     </div>
   );
 }

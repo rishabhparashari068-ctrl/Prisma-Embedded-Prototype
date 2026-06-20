@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Compass, ShieldCheck, Users, FolderGit2, Award, Flame, 
   Sun, Moon, Sparkles, Menu, X, LayoutDashboard, Home, BookOpen,
-  MoreVertical, User, LogIn, UserPlus, LogOut, ShieldAlert, Key, CheckCircle2, RefreshCw, Mail
+  MoreVertical, User, LogIn, UserPlus, LogOut, ShieldAlert, Shield, Key, CheckCircle2, RefreshCw, Mail
 } from 'lucide-react';
 
 // Import Pages
@@ -35,6 +35,7 @@ const yesterdayKey = () => {
 
 const createFreshTracks = () => cloneTracks().map((track, trackIndex) => ({
   ...track,
+  enrolled: false,
   xp: 0,
   completedNodes: 0,
   nodes: track.nodes.map((node, nodeIndex) => ({
@@ -58,8 +59,11 @@ const createWorkspace = (name = 'New Learner', email = '') => {
       year: '',
       location: '',
       bio: 'Fresh learning workspace ready for your first roadmap milestone.',
+      avatarUrl: '',
+      backgroundImage: '',
       followers: 0,
       following: 0,
+      projects: [],
       apiKey: `pec_live_${Math.random().toString(36).slice(2, 11)}_key`
     },
     xp: 0,
@@ -76,6 +80,7 @@ const createWorkspace = (name = 'New Learner', email = '') => {
 
 const workspaceKey = (email) => `pec_workspace:${email.toLowerCase().trim()}`;
 const guestWorkspaceKey = 'pec_workspace:guest';
+const authSessionKey = 'pec_auth_session';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 const getCsrfToken = async () => {
@@ -132,6 +137,7 @@ const createWorkspaceFromAuthUser = (authUser) => {
   const workspace = savedWorkspace
     ? JSON.parse(savedWorkspace)
     : createWorkspace(authUser.fullName || authUser.email.split('@')[0], authUser.email);
+  const metadata = authUser.metadata && typeof authUser.metadata === 'object' ? authUser.metadata : {};
 
   return {
     ...workspace,
@@ -139,13 +145,21 @@ const createWorkspaceFromAuthUser = (authUser) => {
       ...workspace.userData,
       name: authUser.fullName || workspace.userData.name,
       email: authUser.email,
-      role: authUser.role || workspace.userData.role
+      role: authUser.role || workspace.userData.role,
+      avatarUrl: authUser.avatarUrl || workspace.userData.avatarUrl || '',
+      backgroundImage: metadata.backgroundImage || workspace.userData.backgroundImage || '',
+      college: metadata.college ?? workspace.userData.college,
+      degree: metadata.degree ?? workspace.userData.degree,
+      year: metadata.year ?? workspace.userData.year,
+      location: metadata.location ?? workspace.userData.location,
+      bio: metadata.bio || workspace.userData.bio,
+      projects: Array.isArray(metadata.projects) ? metadata.projects : (workspace.userData.projects || [])
     }
   };
 };
 
 export default function App() {
-  const [page, setPage] = useState('home'); // 'home' | 'dashboard' | 'learning' | 'projects' | 'resume' | 'mentorship' | 'community'
+  const [page, setPage] = useState('dashboard'); // 'dashboard' | 'learning' | 'roadmap' | 'projects' | 'resume' | 'mentorship' | 'community'
   const [theme, setTheme] = useState('dark');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -186,6 +200,13 @@ export default function App() {
   const [signUpEmail, setSignUpEmail] = useState('');
   const [signUpPassword, setSignUpPassword] = useState('');
 
+  // Sign Up - Personal Profile Fields (shown directly on Dashboard after signup)
+  const [signUpCollege, setSignUpCollege] = useState('');
+  const [signUpDegree, setSignUpDegree] = useState('');
+  const [signUpYear, setSignUpYear] = useState('');
+  const [signUpLocation, setSignUpLocation] = useState('');
+  const [signUpBio, setSignUpBio] = useState('');
+
   // Global Student Stats State
   const [xp, setXp] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -204,6 +225,16 @@ export default function App() {
     localStorage.setItem(key, JSON.stringify(workspace));
   };
 
+  const persistRegisteredSession = ({ email, accessToken = authToken, refreshTokenValue = refreshToken }) => {
+    if (!email) return;
+    localStorage.setItem(authSessionKey, JSON.stringify({
+      email,
+      accessToken,
+      refreshToken: refreshTokenValue,
+      savedAt: new Date().toISOString()
+    }));
+  };
+
   const applyWorkspace = (workspace) => {
     setUserData(workspace.userData);
     setXp(workspace.xp || 0);
@@ -217,7 +248,7 @@ export default function App() {
     setActiveTrack(workspace.activeTrack || workspace.tracksData?.[0] || createFreshTracks()[0]);
   };
 
-  const handleSaveUserProfile = (profileData) => {
+  const handleSaveUserProfile = async (profileData) => {
     const nextUserData = { ...userData, ...profileData };
     const nextWorkspace = {
       userData: nextUserData,
@@ -234,7 +265,94 @@ export default function App() {
 
     setUserData(nextUserData);
     persistWorkspace(nextWorkspace);
+    persistRegisteredSession({ email: nextUserData.email });
+
+    if (authToken) {
+      try {
+        await fetch(`${API_BASE_URL}/users/me`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            fullName: nextUserData.name,
+            avatarUrl: nextUserData.avatarUrl,
+            metadata: {
+              college: nextUserData.college,
+              degree: nextUserData.degree,
+              year: nextUserData.year,
+              location: nextUserData.location,
+              bio: nextUserData.bio,
+              backgroundImage: nextUserData.backgroundImage,
+              projects: nextUserData.projects || []
+            }
+          })
+        });
+      } catch {
+        // Browser workspace state still preserves profile uploads offline.
+      }
+    }
+
     return true;
+  };
+
+  const handleAddUserProject = async (projectData) => {
+    const project = {
+      id: `user-project-${Date.now()}`,
+      title: projectData.title,
+      desc: projectData.desc,
+      status: projectData.status || 'In Progress',
+      tags: projectData.tags,
+      git: projectData.git,
+      live: projectData.live,
+      docs: projectData.docs,
+      image: projectData.image,
+      uploadedAt: new Date().toISOString()
+    };
+
+    await handleSaveUserProfile({
+      projects: [project, ...(userData.projects || [])]
+    });
+
+    return project;
+  };
+
+  const handleEnrollTrack = (courseId) => {
+    const updatedTracks = tracksData.map(track => {
+      if (track.id !== courseId) return track;
+
+      const hasUnlockedNode = track.nodes.some(node => node.status !== 'locked');
+
+      return {
+        ...track,
+        enrolled: true,
+        nodes: hasUnlockedNode
+          ? track.nodes
+          : track.nodes.map((node, index) => ({
+            ...node,
+            status: index === 0 ? 'active' : node.status
+          }))
+      };
+    });
+    const nextActiveTrack = updatedTracks.find(track => track.id === courseId) || updatedTracks[0];
+    const nextWorkspace = {
+      userData,
+      xp,
+      streak,
+      atsScore,
+      resumeScore,
+      internshipScore,
+      freelanceScore,
+      lastStreakDate,
+      tracksData: updatedTracks,
+      activeTrack: nextActiveTrack
+    };
+
+    setTracksData(updatedTracks);
+    setActiveTrack(nextActiveTrack);
+    persistWorkspace(nextWorkspace);
+    return nextActiveTrack;
   };
 
   const handleCompleteNode = (nodeId, nodeXp, category = '') => {
@@ -343,7 +461,24 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (isSignedIn) return;
+    const savedSession = localStorage.getItem(authSessionKey);
+    if (savedSession) {
+      try {
+        const session = JSON.parse(savedSession);
+        const savedWorkspace = session.email ? localStorage.getItem(workspaceKey(session.email)) : null;
+
+        if (savedWorkspace) {
+          applyWorkspace(JSON.parse(savedWorkspace));
+          setAuthToken(session.accessToken || '');
+          setRefreshToken(session.refreshToken || '');
+          setIsSignedIn(true);
+          setPage('dashboard');
+          return;
+        }
+      } catch {
+        localStorage.removeItem(authSessionKey);
+      }
+    }
 
     const savedGuestWorkspace = localStorage.getItem(guestWorkspaceKey);
     if (!savedGuestWorkspace) return;
@@ -355,9 +490,8 @@ export default function App() {
     }
   }, []);
 
-  // Nav Links (Removed Internships and Freelance Hub)
+  // Nav Links (Home removed — signed-in users never navigate back to the landing page)
   const navigationItems = [
-    { id: 'home', label: 'Home', icon: Home },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'learning', label: 'Courses', icon: BookOpen, highlight: true },
     { id: 'roadmap', label: 'My Journey', icon: Compass },
@@ -393,6 +527,11 @@ export default function App() {
       persistWorkspace(workspace);
       setAuthToken(authData.accessToken || '');
       setRefreshToken(authData.refreshToken || '');
+      persistRegisteredSession({
+        email: workspace.userData.email,
+        accessToken: authData.accessToken || '',
+        refreshTokenValue: authData.refreshToken || ''
+      });
       setIsSignedIn(true);
       setPage('dashboard');
       setAuthLoading(false);
@@ -434,6 +573,11 @@ export default function App() {
       persistWorkspace(workspace);
       setAuthToken(authData.accessToken || '');
       setRefreshToken(authData.refreshToken || '');
+      persistRegisteredSession({
+        email: workspace.userData.email,
+        accessToken: authData.accessToken || '',
+        refreshTokenValue: authData.refreshToken || ''
+      });
       setIsSignedIn(true);
       setPage('dashboard');
       setAuthLoading(false);
@@ -599,10 +743,43 @@ export default function App() {
         password: signUpPassword
       });
 
+      let registeredAuthData = null;
+      try {
+        registeredAuthData = await authRequest('/auth/login', {
+          email: signUpEmail,
+          password: signUpPassword
+        });
+      } catch {
+        registeredAuthData = null;
+      }
+
       setAuthSuccess(true);
-      const workspace = createWorkspace(signUpName, signUpEmail);
+
+      // Build the workspace AND fold in the personal details collected
+      // during signup so they appear directly on the Dashboard.
+      const workspace = registeredAuthData?.user
+        ? createWorkspaceFromAuthUser(registeredAuthData.user)
+        : createWorkspace(signUpName, signUpEmail);
+      workspace.userData = {
+        ...workspace.userData,
+        name: signUpName,
+        email: signUpEmail,
+        college: signUpCollege,
+        degree: signUpDegree,
+        year: signUpYear,
+        location: signUpLocation,
+        bio: signUpBio || workspace.userData.bio
+      };
+
       applyWorkspace(workspace);
       persistWorkspace(workspace);
+      setAuthToken(registeredAuthData?.accessToken || '');
+      setRefreshToken(registeredAuthData?.refreshToken || '');
+      persistRegisteredSession({
+        email: workspace.userData.email,
+        accessToken: registeredAuthData?.accessToken || '',
+        refreshTokenValue: registeredAuthData?.refreshToken || ''
+      });
       setIsSignedIn(true);
       setPage('dashboard');
       setAuthLoading(false);
@@ -613,6 +790,11 @@ export default function App() {
         setSignUpName('');
         setSignUpEmail('');
         setSignUpPassword('');
+        setSignUpCollege('');
+        setSignUpDegree('');
+        setSignUpYear('');
+        setSignUpLocation('');
+        setSignUpBio('');
       }, 1000);
     } catch (error) {
       setAuthLoading(false);
@@ -638,24 +820,31 @@ export default function App() {
     setIsSignedIn(false);
     setAuthToken('');
     setRefreshToken('');
+    localStorage.removeItem(authSessionKey);
     setAccountMenuOpen(false);
     setActiveModal(null);
     setAuthError('');
+    // Signed-out users land back on the Home / landing page.
     setPage('home');
   };
 
   // Page Switch Router
   const renderPage = () => {
-    switch (page) {
-      case 'home':
-        return (
-          <HomeScreen 
-            setPage={setPage} 
-            xp={xp} 
-            streak={streak} 
-            activeTrack={activeTrack} 
-          />
-        );
+    // Signed-out / new visitors only ever see the landing page.
+    // No NavigationBar, no Dashboard — just Home with Sign Up / Sign In CTAs.
+    if (!isSignedIn) {
+      return (
+        <HomeScreen
+          onStartJourney={() => { setActiveModal('signup'); setAuthError(''); }}
+          onSignIn={() => { setActiveModal('signin'); setAuthError(''); }}
+        />
+      );
+    }
+
+    // Signed-in users can never land back on the Home screen.
+    const safePage = (page === 'home' || !page) ? 'dashboard' : page;
+
+    switch (safePage) {
       case 'dashboard':
         return (
           <StudentDashboard 
@@ -672,6 +861,7 @@ export default function App() {
             lastStreakDate={lastStreakDate}
             setActiveTrack={setActiveTrack}
             onSaveProfile={handleSaveUserProfile}
+            onAddProject={handleAddUserProject}
             authToken={authToken}
           />
         );
@@ -681,6 +871,8 @@ export default function App() {
             setPage={setPage} 
             setActiveTrack={setActiveTrack} 
             tracksData={tracksData} 
+            setTracksData={setTracksData}
+            onEnrollTrack={handleEnrollTrack}
           />
         );
       case 'roadmap':
@@ -693,6 +885,7 @@ export default function App() {
             setAtsScore={setAtsScore} setResumeScore={setResumeScore}
             setInternshipScore={setInternshipScore} setFreelanceScore={setFreelanceScore}
             userData={userData}
+            setPage={setPage}
             onCompleteNode={handleCompleteNode}
           />
         );
@@ -711,154 +904,155 @@ export default function App() {
       case 'community':
         return <Community leaderboard={LEADERBOARD} authToken={authToken} userData={userData} isSignedIn={isSignedIn} />;
       default:
-        return <HomeScreen setPage={setPage} xp={xp} streak={streak} activeTrack={activeTrack} />;
+        return (
+          <StudentDashboard 
+            xp={xp} 
+            streak={streak} 
+            atsScore={atsScore} 
+            resumeScore={resumeScore} 
+            internshipScore={internshipScore} 
+            freelanceScore={freelanceScore} 
+            activeTrack={activeTrack} 
+            setPage={setPage}
+            userData={userData}
+            tracksData={tracksData}
+            lastStreakDate={lastStreakDate}
+            setActiveTrack={setActiveTrack}
+            onSaveProfile={handleSaveUserProfile}
+            onAddProject={handleAddUserProject}
+            authToken={authToken}
+          />
+        );
     }
   };
 
   return (
     <div className="min-h-screen transition-colors duration-300 bg-slate-50 dark:bg-darknavy text-slate-900 dark:text-slate-100 flex flex-col font-sans">
       
-      {/* HIGHLY FLEXIBLE HORIZONTAL NAVIGATION TOPBAR */}
-      <header className="sticky top-0 z-40 w-full bg-white/70 dark:bg-darknavy/75 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/40">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between gap-4">
-          
-          {/* Logo & Branding */}
-          <div 
-            onClick={() => setPage('home')} 
-            className="flex items-center gap-2.5 cursor-pointer shrink-0 group"
-          >
-            <img
-              src="/prisma-mark.svg"
-              alt="Prisma Embedded Codes"
-              className="w-10 h-10 rounded-xl object-cover shadow shadow-indigo-500/10 group-hover:scale-105 transition-transform"
-            />
-            <div className="hidden sm:block">
-              <h2 className="text-xs font-extrabold text-slate-950 dark:text-white leading-tight">
-                Prisma Embedded Codes
-              </h2>
-              <span className="text-[9px] text-brand-primary font-bold block mt-0.5">Learn. Build. Earn.</span>
-            </div>
-          </div>
-
-          {/* Desktop Flexible Horizontal Pills Navigation */}
-          <nav className="hidden lg:flex gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/60 rounded-xl border border-slate-200/50 dark:border-slate-800/40 text-[11px] font-bold max-w-4xl overflow-x-auto">
-            {navigationItems.map(item => {
-              const Icon = item.icon;
-              const isActive = page === item.id;
-              
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setPage(item.id)}
-                  className={`px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all shrink-0 ${
-                    isActive 
-                      ? 'bg-white dark:bg-slate-800 text-brand-primary dark:text-brand-accent shadow-sm border border-slate-200/50 dark:border-slate-700/50' 
-                      : 'text-slate-550 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-slate-950/40'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span>{item.label}</span>
-                  {item.highlight && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping"></span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Status Stats, Theme & Kebab menu controls */}
-          <div className="flex items-center gap-4 sm:gap-6 shrink-0 relative">
-            {/* Theme toggle */}
-            <button 
-              onClick={toggleTheme}
-              className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-105 dark:hover:bg-slate-900 text-slate-500 dark:text-slate-400 transition-colors"
+      {/* HIGHLY FLEXIBLE HORIZONTAL NAVIGATION TOPBAR — only rendered once the visitor is a signed-in user */}
+      {isSignedIn && (
+        <header className="sticky top-0 z-40 w-full bg-white/70 dark:bg-darknavy/75 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/40">
+          <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between gap-4">
+            
+            {/* Logo & Branding */}
+            <div 
+              onClick={() => setPage('dashboard')} 
+              className="flex items-center gap-2.5 cursor-pointer shrink-0 group"
             >
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
+              <img
+                src="/prisma-mark.svg"
+                alt="Prisma Embedded Codes"
+                className="w-10 h-10 rounded-xl object-cover shadow shadow-indigo-500/10 group-hover:scale-105 transition-transform"
+              />
+              <div className="hidden sm:block">
+                <h2 className="text-xs font-extrabold text-slate-950 dark:text-white leading-tight">
+                  Prisma Embedded Codes
+                </h2>
+                <span className="text-[9px] text-brand-primary font-bold block mt-0.5">Learn. Build. Earn.</span>
+              </div>
+            </div>
 
-            {/* THREE VERTICAL DOTS / LINES KEBAB BUTTON */}
-            <div className="relative">
+            {/* Desktop Flexible Horizontal Pills Navigation */}
+            <nav className="hidden lg:flex gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/60 rounded-xl border border-slate-200/50 dark:border-slate-800/40 text-[11px] font-bold max-w-4xl overflow-x-auto">
+              {navigationItems.map(item => {
+                const Icon = item.icon;
+                const isActive = page === item.id;
+                
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setPage(item.id)}
+                    className={`px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all shrink-0 ${
+                      isActive 
+                        ? 'bg-white dark:bg-slate-800 text-brand-primary dark:text-brand-accent shadow-sm border border-slate-200/50 dark:border-slate-700/50' 
+                        : 'text-slate-550 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-slate-950/40'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{item.label}</span>
+                    {item.highlight && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping"></span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Status Stats, Theme & Kebab menu controls */}
+            <div className="flex items-center gap-4 sm:gap-6 shrink-0 relative">
+              {/* Theme toggle */}
               <button 
-                onClick={() => setAccountMenuOpen(!accountMenuOpen)}
-                className={`p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-105 dark:hover:bg-slate-900 transition-all ${accountMenuOpen ? 'bg-indigo-500/10 text-brand-primary border-indigo-500/30' : ''}`}
+                onClick={toggleTheme}
+                className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-105 dark:hover:bg-slate-900 text-slate-500 dark:text-slate-400 transition-colors"
               >
-                <MoreVertical className="w-4 h-4" />
+                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
 
-              {/* Glassmorphic Dropdown Drawer */}
-              {accountMenuOpen && (
-                <div className="absolute right-0 mt-3 w-52 bg-white/95 dark:bg-darknavy-card/95 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-800 p-2 shadow-xl z-50 space-y-1 text-xs font-bold leading-none animate-in fade-in slide-in-from-top-1.5 duration-200">
-                  {isSignedIn ? (
-                    <>
-                      <button 
-                        onClick={() => { setActiveModal('account'); setAccountMenuOpen(false); }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-left text-slate-750 dark:text-slate-350 transition-colors"
-                      >
-                        <User className="w-4 h-4 text-indigo-550" /> My Account
-                      </button>
-                      <button 
-                        onClick={handleSignOut}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-left text-slate-750 dark:text-slate-300 transition-colors"
-                      >
-                        <LogOut className="w-4 h-4 text-rose-500" /> Sign Out
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button 
-                        onClick={() => { setActiveModal('signin'); setAccountMenuOpen(false); setAuthError(''); }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-left text-slate-750 dark:text-slate-300 transition-colors"
-                      >
-                        <LogIn className="w-4 h-4 text-emerald-500" /> Sign In
-                      </button>
-                      <button 
-                        onClick={() => { setActiveModal('signup'); setAccountMenuOpen(false); setAuthError(''); }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-left text-slate-750 dark:text-slate-300 transition-colors"
-                      >
-                        <UserPlus className="w-4 h-4 text-brand-secondary" /> Sign Up if New User
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
+              {/* THREE VERTICAL DOTS / LINES KEBAB BUTTON */}
+              <div className="relative">
+                <button 
+                  onClick={() => setAccountMenuOpen(!accountMenuOpen)}
+                  className={`p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-105 dark:hover:bg-slate-900 transition-all ${accountMenuOpen ? 'bg-indigo-500/10 text-brand-primary border-indigo-500/30' : ''}`}
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+
+                {/* Glassmorphic Dropdown Drawer — signed-in users only see Account / Sign Out */}
+                {accountMenuOpen && (
+                  <div className="absolute right-0 mt-3 w-52 bg-white/95 dark:bg-darknavy-card/95 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-800 p-2 shadow-xl z-50 space-y-1 text-xs font-bold leading-none animate-in fade-in slide-in-from-top-1.5 duration-200">
+                    <button 
+                      onClick={() => { setActiveModal('account'); setAccountMenuOpen(false); }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-left text-slate-750 dark:text-slate-350 transition-colors"
+                    >
+                      <User className="w-4 h-4 text-indigo-550" /> My Account
+                    </button>
+                    <button 
+                      onClick={handleSignOut}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-left text-slate-750 dark:text-slate-300 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4 text-rose-500" /> Sign Out
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile Hamburger toggle */}
+              <button 
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500"
+              >
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
             </div>
 
-            {/* Mobile Hamburger toggle */}
-            <button 
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
           </div>
 
-        </div>
-
-        {/* Mobile Flexible slide-down menu */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden absolute top-20 left-0 right-0 bg-white dark:bg-darknavy border-b border-slate-200 dark:border-slate-800 p-5 flex flex-col gap-2 shadow-xl z-50 text-xs font-bold">
-            {navigationItems.map(item => {
-              const Icon = item.icon;
-              const isActive = page === item.id;
-              
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => { setPage(item.id); setMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
-                    isActive 
-                      ? 'bg-indigo-500/10 text-brand-primary dark:text-brand-accent border-l-2 border-indigo-500 pl-2.5' 
-                      : 'text-slate-550 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900/60'
-                  }`}
-                >
-                  <Icon className="w-4.5 h-4.5" />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </header>
+          {/* Mobile Flexible slide-down menu */}
+          {mobileMenuOpen && (
+            <div className="lg:hidden absolute top-20 left-0 right-0 bg-white dark:bg-darknavy border-b border-slate-200 dark:border-slate-800 p-5 flex flex-col gap-2 shadow-xl z-50 text-xs font-bold">
+              {navigationItems.map(item => {
+                const Icon = item.icon;
+                const isActive = page === item.id;
+                
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => { setPage(item.id); setMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
+                      isActive 
+                        ? 'bg-indigo-500/10 text-brand-primary dark:text-brand-accent border-l-2 border-indigo-500 pl-2.5' 
+                        : 'text-slate-550 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900/60'
+                    }`}
+                  >
+                    <Icon className="w-4.5 h-4.5" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </header>
+      )}
 
       {/* FULL WIDTH ROUTABLE CANVASES */}
       <main className="flex-1 overflow-y-auto">
@@ -1173,10 +1367,10 @@ export default function App() {
         </div>
       )}
 
-      {/* 3. SIGN UP MODAL */}
+      {/* 3. SIGN UP MODAL — collects personal details that show up directly on the Dashboard */}
       {activeModal === 'signup' && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center p-4">
-          <div className="bg-white dark:bg-darknavy-card w-full max-w-sm p-6 sm:p-8 rounded-3xl border border-slate-250 dark:border-slate-805 shadow-xl relative text-left">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-darknavy-card w-full max-w-sm my-8 p-6 sm:p-8 rounded-3xl border border-slate-250 dark:border-slate-805 shadow-xl relative text-left">
             <button 
               onClick={() => setActiveModal(null)}
               className="absolute top-4 right-4 p-1.5 rounded-xl hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-450 transition-colors"
@@ -1236,6 +1430,71 @@ export default function App() {
                       placeholder="Configure minimum 8 characters..."
                       className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none text-slate-850 dark:text-white"
                     />
+                  </div>
+
+                  {/* Personal Profile Details — these will appear directly on the Dashboard */}
+                  <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-3.5">
+                    <span className="text-[9.5px] uppercase font-extrabold text-indigo-550 tracking-wider block">Personal Profile Details</span>
+
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-550 dark:text-slate-455 block">College Name</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={signUpCollege}
+                        onChange={(e) => setSignUpCollege(e.target.value)}
+                        placeholder="e.g. Delhi Technological University"
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none text-slate-850 dark:text-white"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="font-bold text-slate-550 dark:text-slate-455 block">Degree / Major</label>
+                        <input 
+                          type="text" 
+                          required
+                          value={signUpDegree}
+                          onChange={(e) => setSignUpDegree(e.target.value)}
+                          placeholder="e.g. B.Tech CSE"
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none text-slate-850 dark:text-white"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="font-bold text-slate-550 dark:text-slate-455 block">Year</label>
+                        <input 
+                          type="text" 
+                          required
+                          value={signUpYear}
+                          onChange={(e) => setSignUpYear(e.target.value)}
+                          placeholder="e.g. 3rd Year"
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none text-slate-850 dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-550 dark:text-slate-455 block">Location</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={signUpLocation}
+                        onChange={(e) => setSignUpLocation(e.target.value)}
+                        placeholder="e.g. New Delhi, India"
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none text-slate-850 dark:text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-550 dark:text-slate-455 block">Short Bio (optional)</label>
+                      <textarea
+                        rows="2"
+                        value={signUpBio}
+                        onChange={(e) => setSignUpBio(e.target.value)}
+                        placeholder="A line about your interests or goals..."
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none text-slate-850 dark:text-white"
+                      />
+                    </div>
                   </div>
                 </div>
 

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { RefreshCw, ShieldCheck, Users, Search, Lock, Mail } from 'lucide-react'
+import { RefreshCw, ShieldCheck, Users, Search, Lock, Mail, Phone, MapPin, Activity, KeyRound, Eye } from 'lucide-react'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
@@ -34,13 +34,20 @@ const isAdminRole = (role) => role === 'admin' || role === 'super_admin'
 
 export default function AdminPanel() {
   const [email, setEmail] = useState('aastikmishra20@gmail.com')
-  const [password, setPassword] = useState('aastik0003')
+  const [password, setPassword] = useState('')
   const [accessToken, setAccessToken] = useState('')
   const [currentAdmin, setCurrentAdmin] = useState(null)
   const [users, setUsers] = useState([])
+  const [summary, setSummary] = useState(null)
+  const [recentAuditLogs, setRecentAuditLogs] = useState([])
+  const [selectedUserId, setSelectedUserId] = useState('')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const selectedUser = useMemo(() => {
+    return users.find((user) => user.id === selectedUserId) || users[0] || null
+  }, [selectedUserId, users])
 
   const filteredUsers = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -50,6 +57,9 @@ export default function AdminPanel() {
       return [
         user.fullName,
         user.email,
+        user.phone,
+        user.location,
+        user.college,
         user.role
       ].filter(Boolean).some((value) => value.toLowerCase().includes(query))
     })
@@ -79,8 +89,11 @@ export default function AdminPanel() {
         throw new Error(data.message || 'Unable to fetch backend users.')
       }
 
-      const nextUsers = Array.isArray(data) ? data : []
+      const nextUsers = Array.isArray(data) ? data : (Array.isArray(data.users) ? data.users : [])
       setUsers(nextUsers)
+      setSummary(Array.isArray(data) ? null : data.summary || null)
+      setRecentAuditLogs(Array.isArray(data) ? [] : data.recentAuditLogs || [])
+      setSelectedUserId((current) => current || nextUsers[0]?.id || '')
       return nextUsers
     } catch (fetchError) {
       const message = fetchError.message || 'Backend is not running on localhost:3001. Start the backend first, then refresh users.'
@@ -129,6 +142,9 @@ export default function AdminPanel() {
       setAccessToken('')
       setCurrentAdmin(null)
       setUsers([])
+      setSummary(null)
+      setRecentAuditLogs([])
+      setSelectedUserId('')
       setError(loginError.message || 'Admin sign in failed.')
     } finally {
       setLoading(false)
@@ -137,6 +153,13 @@ export default function AdminPanel() {
 
   const totalVerified = users.filter((user) => user.emailVerified).length
   const totalMfa = users.filter((user) => user.mfaEnabled).length
+  const visibleSummary = summary || {
+    totalUsers: users.length,
+    verifiedUsers: totalVerified,
+    mfaUsers: totalMfa,
+    activeSessions: users.reduce((total, user) => total + (user.counts?.activeSessions || 0), 0),
+    usersWithPassword: users.filter((user) => user.password?.stored).length
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">

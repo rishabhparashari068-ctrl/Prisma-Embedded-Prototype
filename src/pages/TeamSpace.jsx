@@ -3,7 +3,7 @@ import {
   Users, FolderGit2, Plus, MessageSquare, BarChart3,
   UserCheck, Shield, LogOut, CheckSquare, PlusCircle,
   FileText, Upload, Calendar, Clock, AlertCircle, Play,
-  Send, Trash2, ShieldAlert, Award, FileCode, CheckCircle2
+  Send, Trash2, ShieldAlert, Award, FileCode, CheckCircle2, Mail
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';

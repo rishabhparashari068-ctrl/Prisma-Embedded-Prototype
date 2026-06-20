@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Lock, Check, Award, Compass, Flame, Info, CheckCircle2,
   ChevronRight, Sparkles, BookOpen, Cpu, XCircle, RotateCcw,
@@ -504,8 +504,9 @@ export default function LearningPath({
   xp, setXp, streak, setStreak,
   activeTrack, setActiveTrack, tracksData, setTracksData,
   setAtsScore, setResumeScore, setInternshipScore, setFreelanceScore,
-  userData, onCompleteNode
+  userData, setPage, onCompleteNode
 }) {
+  const messageIdRef = useRef(0);
   const [selectedNode, setSelectedNode] = useState(null);
   const [userAnswer, setUserAnswer] = useState(null);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
@@ -531,6 +532,20 @@ export default function LearningPath({
 
   // Certificate Modal state
   const [showCertificate, setShowCertificate] = useState(false);
+  const nextMessageId = (prefix = 'm') => {
+    messageIdRef.current += 1;
+    return `${prefix}-${messageIdRef.current}`;
+  };
+  const enrolledTracks = Array.isArray(tracksData)
+    ? tracksData.filter(track => track?.enrolled || (track?.completedNodes || 0) > 0)
+    : [];
+  const currentTrack = enrolledTracks.find(track => track.id === activeTrack?.id) || enrolledTracks[0] || null;
+
+  useEffect(() => {
+    if (currentTrack && activeTrack?.id !== currentTrack.id) {
+      setActiveTrack(currentTrack);
+    }
+  }, [currentTrack, activeTrack?.id, setActiveTrack]);
 
   // Dynamic sound synthesis using the Web Audio API (zero external assets needed!)
   const playVictorySound = () => {
@@ -570,7 +585,7 @@ export default function LearningPath({
   };
 
   const handleTrackChange = (trackId) => {
-    const matched = tracksData.find(t => t.id === trackId);
+    const matched = enrolledTracks.find(t => t.id === trackId);
     if (matched) {
       setActiveTrack(matched);
     }
@@ -605,13 +620,13 @@ export default function LearningPath({
 
   // Doubt bubble click response
   const handleDoubtClick = (doubt) => {
-    const userMsg = { id: "m-" + Date.now(), sender: "user", text: doubt.q };
+    const userMsg = { id: nextMessageId(), sender: "user", text: doubt.q };
     setChatMessages(prev => [...prev, userMsg]);
     setIsTyping(true);
 
     setTimeout(() => {
       setIsTyping(false);
-      const aiMsg = { id: "m-ai-" + Date.now(), sender: "ai", text: doubt.a };
+      const aiMsg = { id: nextMessageId('m-ai'), sender: "ai", text: doubt.a };
       setChatMessages(prev => [...prev, aiMsg]);
     }, 600);
   };
@@ -621,7 +636,7 @@ export default function LearningPath({
     e.preventDefault();
     if (!customInput.trim()) return;
 
-    const userMsg = { id: "m-" + Date.now(), sender: "user", text: customInput };
+    const userMsg = { id: nextMessageId(), sender: "user", text: customInput };
     setChatMessages(prev => [...prev, userMsg]);
     const query = customInput.trim().toLowerCase();
     setCustomInput("");
@@ -641,7 +656,7 @@ export default function LearningPath({
         responseText = "RAG queries convert user prompts into floating array embeddings, checking similarity against Pinecone databases using cosine distance calculations to retrieve precise semantic reference blocks.";
       }
 
-      const aiMsg = { id: "m-ai-" + Date.now(), sender: "ai", text: responseText };
+      const aiMsg = { id: nextMessageId('m-ai'), sender: "ai", text: responseText };
       setChatMessages(prev => [...prev, aiMsg]);
     }, 850);
   };
@@ -787,13 +802,41 @@ Build Successful. Static memory: 14.2 KB Flash, 1.8 KB RAM.`;
     }
   };
 
+  const hasEnrolledCourses = enrolledTracks.length > 0;
+
+  if (!hasEnrolledCourses) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto min-h-[65vh] flex items-center justify-center text-left">
+        <div className="glass-panel w-full max-w-xl rounded-2xl p-8 text-center border border-indigo-500/10">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+            <Compass className="h-8 w-8" />
+          </div>
+          <h2 className="text-xl font-extrabold text-slate-950 dark:text-white font-sora">
+            No Journey Started Yet
+          </h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm font-medium leading-relaxed text-slate-500 dark:text-slate-400">
+            Enroll in a course first, then your roadmap, milestones, and learning progress will appear here.
+          </p>
+          <button
+            onClick={() => setPage?.('learning')}
+            className="mx-auto mt-6 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-8 py-3 text-xs font-bold text-white shadow-lg shadow-indigo-500/20 transition-colors hover:bg-indigo-700"
+          >
+            <BookOpen className="h-4 w-4" />
+            Explore Courses
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 relative text-left">
 
       {/* TOP DYNAMIC ACHIEVEMENT COURSE BADGES */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {tracksData.map(track => {
-          const isSelected = activeTrack?.id === track.id;
+        {enrolledTracks.map(track => {
+          const isSelected = currentTrack?.id === track.id;
           const percent = Math.floor((track.completedNodes / track.totalNodes) * 100);
 
           let cardBorder = isSelected ? "border-indigo-500 shadow-md ring-2 ring-indigo-500/10 dark:bg-slate-900/60" : "border-slate-205 dark:border-slate-800/80 hover:border-slate-350 dark:hover:border-slate-700 bg-white/40 dark:bg-slate-905/30";
@@ -861,7 +904,7 @@ Build Successful. Static memory: 14.2 KB Flash, 1.8 KB RAM.`;
             <div className="absolute top-16 bottom-16 left-1/2 w-4 -translate-x-1/2 pointer-events-none z-0">
               <svg className="w-full h-full" overflow="visible">
                 <path
-                  d={`M 8,0 ${activeTrack?.nodes.map((_, i) => {
+                  d={`M 8,0 ${currentTrack?.nodes.map((_, i) => {
                     const xOffset = Math.sin(i * 1.2) * 45;
                     const yVal = i * 96 + 32;
                     return `L ${8 + xOffset},${yVal}`;
@@ -873,7 +916,7 @@ Build Successful. Static memory: 14.2 KB Flash, 1.8 KB RAM.`;
                   strokeLinecap="round"
                 />
                 <path
-                  d={`M 8,0 ${activeTrack?.nodes.map((n, i) => {
+                  d={`M 8,0 ${currentTrack?.nodes.map((n, i) => {
                     if (n.status === 'locked') return '';
                     const xOffset = Math.sin(i * 1.2) * 45;
                     const yVal = i * 96 + 32;
@@ -888,7 +931,7 @@ Build Successful. Static memory: 14.2 KB Flash, 1.8 KB RAM.`;
             </div>
 
             {/* Level Nodes */}
-            {activeTrack?.nodes.map((node, idx) => {
+            {currentTrack?.nodes.map((node, idx) => {
               const isCompleted = node.status === 'completed';
               const isActive = node.status === 'active';
               const isLocked = node.status === 'locked';
@@ -937,21 +980,21 @@ Build Successful. Static memory: 14.2 KB Flash, 1.8 KB RAM.`;
           <div className="glass-panel p-6 rounded-2xl">
             <h3 className="font-extrabold text-slate-950 dark:text-white mb-2">Track Overview</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
-              {activeTrack?.description}
+              {currentTrack?.description}
             </p>
 
             <div className="space-y-3.5">
               <div className="flex justify-between items-center text-xs">
                 <span className="text-slate-500 dark:text-slate-400 font-medium">Journey Progress</span>
                 <span className="font-bold text-slate-900 dark:text-white">
-                  {activeTrack ? Math.floor((activeTrack.completedNodes / activeTrack.totalNodes) * 100) : 0}%
+                  {currentTrack ? Math.floor((currentTrack.completedNodes / currentTrack.totalNodes) * 100) : 0}%
                 </span>
               </div>
 
               <div className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-indigo-500"
-                  style={{ width: activeTrack ? `${(activeTrack.completedNodes / activeTrack.totalNodes) * 100}%` : '0%' }}
+                  style={{ width: currentTrack ? `${(currentTrack.completedNodes / currentTrack.totalNodes) * 100}%` : '0%' }}
                 ></div>
               </div>
 
@@ -959,14 +1002,14 @@ Build Successful. Static memory: 14.2 KB Flash, 1.8 KB RAM.`;
                 <div className="bg-slate-100 dark:bg-slate-900/60 p-3 rounded-xl">
                   <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block mb-0.5">Unlocked Nodes</span>
                   <span className="text-lg font-bold text-slate-900 dark:text-white">
-                    {activeTrack?.nodes.filter(n => n.status !== 'locked').length}
+                    {currentTrack?.nodes.filter(n => n.status !== 'locked').length}
                   </span>
                 </div>
 
                 <div className="bg-slate-100 dark:bg-slate-900/60 p-3 rounded-xl">
                   <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block mb-0.5">Completed Nodes</span>
                   <span className="text-lg font-bold text-emerald-500">
-                    {activeTrack?.completedNodes}
+                    {currentTrack?.completedNodes}
                   </span>
                 </div>
               </div>

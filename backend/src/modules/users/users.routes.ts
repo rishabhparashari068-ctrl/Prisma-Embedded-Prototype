@@ -32,6 +32,36 @@ export async function usersRoutes(fastify: FastifyInstance) {
     return user;
   });
 
+  // PATCH /api/v1/users/me
+  // Updates dashboard profile fields and local portfolio metadata for the signed-in user.
+  fastify.patch('/me', {
+    preHandler: [requireAuth]
+  }, async (request, reply) => {
+    const body = request.body as {
+      fullName?: string;
+      avatarUrl?: string;
+      metadata?: Record<string, any>;
+    };
+
+    const fullName = typeof body.fullName === 'string' ? body.fullName.trim() : undefined;
+    const updated = await usersService.updateUserProfile(request.user!.id, {
+      fullName,
+      avatarUrl: typeof body.avatarUrl === 'string' ? body.avatarUrl : undefined,
+      metadata: body.metadata && typeof body.metadata === 'object' ? body.metadata : {}
+    });
+
+    if (!updated) {
+      return reply.status(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        code: 'NOT_FOUND',
+        message: 'Profile not found'
+      });
+    }
+
+    return reply.status(200).send(updated);
+  });
+
   // GET /api/v1/users/directory?query=aastik
   // Returns registered users that the signed-in student can discover and invite.
   fastify.get('/directory', {
@@ -144,8 +174,12 @@ export async function usersRoutes(fastify: FastifyInstance) {
   fastify.get('/admin/users', {
     preHandler: [requireAuth, requireRole('admin', 'super_admin')]
   }, async (request, reply) => {
-    const users = await usersService.getAllUsers();
-    return users;
+    const { query, limit } = request.query as { query?: string; limit?: string };
+    const overview = await usersService.getAdminUsersOverview({
+      query,
+      limit: limit ? Number(limit) : undefined
+    });
+    return reply.status(200).send(overview);
   });
 
   // PATCH /api/v1/users/admin/users/:id/role
