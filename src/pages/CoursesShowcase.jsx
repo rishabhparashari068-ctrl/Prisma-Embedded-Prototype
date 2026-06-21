@@ -4,6 +4,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+
 // Mock high-fidelity slide deck contents for the demo PPT
 const coursePpts = {
   'web-dev': {
@@ -434,8 +436,9 @@ export default function CoursesShowcase({ setPage, setActiveTrack, tracksData, s
   const [activePptCourse, setActivePptCourse] = useState(null); // 'web-dev' | 'ai-ml' | 'embedded' | null
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isAutoplay, setIsAutoplay] = useState(false);
+  const [publishedCourses, setPublishedCourses] = useState([]);
 
-  const courses = [
+  const builtInCourses = [
     {
       id: 'web-dev',
       title: "Web Development Mastery",
@@ -473,6 +476,18 @@ export default function CoursesShowcase({ setPage, setActiveTrack, tracksData, s
       accent: "cyan"
     }
   ];
+  const courses = [...builtInCourses, ...publishedCourses];
+
+  useEffect(() => {
+    let active = true;
+    fetch(`${API_BASE_URL}/catalog/courses`, { cache: 'no-store' })
+      .then(response => response.ok ? response.json() : Promise.reject())
+      .then(data => {
+        if (active) setPublishedCourses((data.courses || []).map(course => ({ ...course, id: course.slug })));
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   const enrolledCourseIds = new Set(
     (tracksData || [])
@@ -526,7 +541,10 @@ export default function CoursesShowcase({ setPage, setActiveTrack, tracksData, s
       }
       setActiveTrack(enrolledTrack);
       setPage('roadmap'); // Correctly route to Duolingo My Journey
+      return;
     }
+    const course = courses.find(item => item.id === courseId);
+    if (course?.actionUrl) window.open(course.actionUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleOpenPpt = (courseId) => {
@@ -698,18 +716,21 @@ export default function CoursesShowcase({ setPage, setActiveTrack, tracksData, s
               </div>
 
               <div className="space-y-2 pt-4 mt-5 border-t border-slate-800">
-                <button
-                  onClick={() => handleOpenPpt(course.id)}
-                  className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold"
-                >
-                  View Demo PPT
-                </button>
+                {coursePpts[course.id] && (
+                  <button
+                    onClick={() => handleOpenPpt(course.id)}
+                    className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold"
+                  >
+                    View Demo PPT
+                  </button>
+                )}
 
                 <button
                   onClick={() => handleLaunchTrack(course.id)}
+                  disabled={!tracksData?.some(track => track.id === course.id) && !course.actionUrl}
                   className="w-full py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold"
                 >
-                  Launch My Journey
+                  {tracksData?.some(track => track.id === course.id) ? 'Launch My Journey' : course.actionUrl ? 'Open Course' : 'Coming Soon'}
                 </button>
               </div>
             </motion.div>

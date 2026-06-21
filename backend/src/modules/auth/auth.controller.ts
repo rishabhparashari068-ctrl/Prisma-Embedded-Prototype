@@ -12,7 +12,7 @@ import {
 import { config } from '../../config/config.js';
 import { hashPassword, verifyPassword, validatePasswordStrength, isPasswordPwned } from '../../utils/password.js';
 import { generateOpaqueToken, hashToken, generateNumericOtp } from '../../utils/crypto.js';
-import { sendEmail } from '../../utils/email.js';
+import { sendEmail, sendLoginNotification, sendWelcomeEmail } from '../../utils/email.js';
 import { logAuditEvent } from '../../utils/audit.js';
 
 export class AuthController {
@@ -98,6 +98,15 @@ export class AuthController {
       });
     }
 
+    if (!user.emailVerified) {
+      return reply.status(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'Verify your email address before signing in.'
+      });
+    }
+
     // Reset failed attempts upon successful authentication
     await this.authService.resetFailedAttempts(user.id);
 
@@ -162,6 +171,18 @@ export class AuthController {
       userId: user.id,
       action: 'auth.login.success',
       ipAddress: ip,
+      userAgent
+    });
+
+    const loginTime = new Date().toISOString();
+    await request.server.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date(loginTime), lastLoginIp: ip }
+    });
+    await sendLoginNotification(user.email, {
+      fullName: user.fullName,
+      loginTime,
+      ip,
       userAgent
     });
 
@@ -292,7 +313,7 @@ export class AuthController {
     });
 
     // Send Welcome Email
-    await sendEmail(tokenRecord.user.email, 'welcome', {
+    await sendWelcomeEmail(tokenRecord.user.email, {
       fullName: tokenRecord.user.fullName
     });
 
@@ -332,7 +353,7 @@ export class AuthController {
       }
     });
 
-    const resetLink = `https://prismaembedded.codes/reset-password?token=${resetToken}`;
+    const resetLink = `${config.FRONTEND_URL}/reset-password?token=${resetToken}`;
     await sendEmail(user.email, 'password_reset', {
       fullName: user.fullName,
       resetLink
@@ -555,6 +576,18 @@ export class AuthController {
       ipAddress: ip,
       userAgent,
       metadata: { mfaVerified: true, mfaType: type }
+    });
+
+    const loginTime = new Date().toISOString();
+    await request.server.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date(loginTime), lastLoginIp: ip }
+    });
+    await sendLoginNotification(user.email, {
+      fullName: user.fullName,
+      loginTime,
+      ip,
+      userAgent
     });
 
     return reply.status(200).send({

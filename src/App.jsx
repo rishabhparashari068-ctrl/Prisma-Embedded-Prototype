@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  Compass, ShieldCheck, Users, FolderGit2, Award, Flame, 
-  Sun, Moon, Sparkles, Menu, X, LayoutDashboard, Home, BookOpen,
+  Compass, ShieldCheck, Users, FolderGit2, Award,
+  Sun, Moon, Menu, X, LayoutDashboard, BookOpen,
   MoreVertical, User, LogIn, UserPlus, LogOut, ShieldAlert, Shield, Key, CheckCircle2, RefreshCw, Mail
 } from 'lucide-react';
 
@@ -439,6 +439,25 @@ export default function App() {
     }
   }, [theme]);
 
+  async function handleEmailVerification(token) {
+    setVerifyStatus('verifying');
+    setActiveModal('verify_status');
+    try {
+      const csrfToken = await getCsrfToken();
+      const res = await fetch(`${API_BASE_URL}/auth/verify-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken
+        },
+        body: JSON.stringify({ token })
+      });
+      setVerifyStatus(res.ok ? 'success' : 'error');
+    } catch {
+      setVerifyStatus('error');
+    }
+  }
+
   // Handle email verification and password reset links from URL parameters
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -446,12 +465,14 @@ export default function App() {
 
     if (window.location.href.includes('verify-email') || window.location.href.includes('verify')) {
       if (token) {
-        handleEmailVerification(token);
+        queueMicrotask(() => handleEmailVerification(token));
       }
     } else if (window.location.href.includes('reset-password') || window.location.href.includes('reset')) {
       if (token) {
-        setResetTokenState(token);
-        setActiveModal('reset_password');
+        queueMicrotask(() => {
+          setResetTokenState(token);
+          setActiveModal('reset_password');
+        });
       }
     }
   }, []);
@@ -468,11 +489,29 @@ export default function App() {
         const savedWorkspace = session.email ? localStorage.getItem(workspaceKey(session.email)) : null;
 
         if (savedWorkspace) {
-          applyWorkspace(JSON.parse(savedWorkspace));
-          setAuthToken(session.accessToken || '');
-          setRefreshToken(session.refreshToken || '');
-          setIsSignedIn(true);
-          setPage('dashboard');
+          queueMicrotask(async () => {
+            try {
+              const refreshed = await authRequest('/auth/refresh', {
+                refreshToken: session.refreshToken || ''
+              });
+              const workspace = JSON.parse(savedWorkspace);
+              applyWorkspace(workspace);
+              setAuthToken(refreshed.accessToken || '');
+              setRefreshToken(refreshed.refreshToken || '');
+              persistRegisteredSession({
+                email: session.email,
+                accessToken: refreshed.accessToken || '',
+                refreshTokenValue: refreshed.refreshToken || ''
+              });
+              setIsSignedIn(true);
+              setPage('dashboard');
+            } catch {
+              localStorage.removeItem(authSessionKey);
+              setAuthToken('');
+              setRefreshToken('');
+              setIsSignedIn(false);
+            }
+          });
           return;
         }
       } catch {
@@ -484,7 +523,7 @@ export default function App() {
     if (!savedGuestWorkspace) return;
 
     try {
-      applyWorkspace(JSON.parse(savedGuestWorkspace));
+      queueMicrotask(() => applyWorkspace(JSON.parse(savedGuestWorkspace)));
     } catch {
       localStorage.removeItem(guestWorkspaceKey);
     }
@@ -547,6 +586,8 @@ export default function App() {
       setAuthLoading(false);
       if (error.code === 'USER_NOT_FOUND') {
         setAuthError('User not found. Please sign up before signing in.');
+      } else if (error.code === 'EMAIL_NOT_VERIFIED') {
+        setAuthError('Verify your email address before signing in. Check your inbox for the verification link.');
       } else if (error.code === 'INVALID_PASSWORD' || error.code === 'UNAUTHORIZED') {
         setAuthError('Incorrect password. Please check your email and password carefully.');
       } else {
@@ -636,29 +677,6 @@ export default function App() {
     }
   };
 
-  const handleEmailVerification = async (token) => {
-    setVerifyStatus('verifying');
-    setActiveModal('verify_status');
-    try {
-      const csrfToken = await getCsrfToken();
-      const res = await fetch(`${API_BASE_URL}/auth/verify-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken
-        },
-        body: JSON.stringify({ token })
-      });
-      if (res.ok) {
-        setVerifyStatus('success');
-      } else {
-        setVerifyStatus('error');
-      }
-    } catch {
-      setVerifyStatus('error');
-    }
-  };
-
   const handleMfaSetupInit = async () => {
     setMfaConfigError('');
     setMfaSetupData(null);
@@ -743,23 +761,7 @@ export default function App() {
         password: signUpPassword
       });
 
-      let registeredAuthData = null;
-      try {
-        registeredAuthData = await authRequest('/auth/login', {
-          email: signUpEmail,
-          password: signUpPassword
-        });
-      } catch {
-        registeredAuthData = null;
-      }
-
-      setAuthSuccess(true);
-
-      // Build the workspace AND fold in the personal details collected
-      // during signup so they appear directly on the Dashboard.
-      const workspace = registeredAuthData?.user
-        ? createWorkspaceFromAuthUser(registeredAuthData.user)
-        : createWorkspace(signUpName, signUpEmail);
+      const workspace = createWorkspace(signUpName, signUpEmail);
       workspace.userData = {
         ...workspace.userData,
         name: signUpName,
@@ -771,31 +773,10 @@ export default function App() {
         bio: signUpBio || workspace.userData.bio
       };
 
-      applyWorkspace(workspace);
       persistWorkspace(workspace);
-      setAuthToken(registeredAuthData?.accessToken || '');
-      setRefreshToken(registeredAuthData?.refreshToken || '');
-      persistRegisteredSession({
-        email: workspace.userData.email,
-        accessToken: registeredAuthData?.accessToken || '',
-        refreshTokenValue: registeredAuthData?.refreshToken || ''
-      });
-      setIsSignedIn(true);
-      setPage('dashboard');
+      setSignInEmail(signUpEmail);
+      setAuthSuccess(true);
       setAuthLoading(false);
-      setTimeout(() => {
-        setAuthSuccess(false);
-        setActiveModal(null);
-        setAuthError('');
-        setSignUpName('');
-        setSignUpEmail('');
-        setSignUpPassword('');
-        setSignUpCollege('');
-        setSignUpDegree('');
-        setSignUpYear('');
-        setSignUpLocation('');
-        setSignUpBio('');
-      }, 1000);
     } catch (error) {
       setAuthLoading(false);
       if (error.code === 'EMAIL_ALREADY_EXISTS') {
@@ -1383,8 +1364,21 @@ export default function App() {
                 <div className="w-14 h-14 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mb-4">
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-extrabold text-slate-950 dark:text-white mb-1">Registration Complete!</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Compiling profile workspace databases...</p>
+                <h3 className="text-xl font-extrabold text-slate-950 dark:text-white mb-1">Check your inbox</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  We sent a verification link to {signUpEmail}. Verify your email before signing in.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthSuccess(false);
+                    setAuthError('');
+                    setActiveModal('signin');
+                  }}
+                  className="mt-5 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-700"
+                >
+                  <Mail className="h-4 w-4" /> Go to sign in
+                </button>
               </div>
             ) : (
               <form onSubmit={handleSignUpSubmit} className="space-y-4">

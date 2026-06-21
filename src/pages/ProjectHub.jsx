@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Code2, Layers, Cpu, Globe, Smartphone, Database, ShieldCheck,
   Sparkles, ArrowRight, Eye, Download, Flame, ChevronRight, X, Mail, Phone, User, CheckCircle2
@@ -6,6 +6,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSeGeOHiOENm93xgiXILD1BdlNeMv1uhRkT1S2-PXuwYvhme9w/viewform?usp=publish-editor';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 /* ---------------------------------------------------------------------
    DESIGN TOKENS
@@ -224,7 +225,7 @@ function ProjectCard({ project, onSee, enrolled = false }) {
             <Eye className="w-3.5 h-3.5" /> See
           </button>
           <a
-            href={GOOGLE_FORM_URL}
+            href={project.actionUrl || GOOGLE_FORM_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
@@ -320,7 +321,7 @@ function DetailModal({ project, onClose }) {
 
             <div className="flex items-center justify-end pt-4 border-t" style={{ borderColor: TOKENS.line }}>
               <a
-                href={GOOGLE_FORM_URL}
+                href={project.actionUrl || GOOGLE_FORM_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-xl"
@@ -342,13 +343,32 @@ function DetailModal({ project, onClose }) {
 export default function ProjectHub() {
   const [activeCategory, setActiveCategory] = useState(null); // null = landing/category-grid view
   const [seeProject, setSeeProject] = useState(null);
+  const [publishedProjects, setPublishedProjects] = useState([]);
 
-  const popularProjects = useMemo(() => PROJECTS.filter((p) => p.popular), []);
+  useEffect(() => {
+    let active = true;
+    fetch(`${API_BASE_URL}/catalog/projects`, { cache: 'no-store' })
+      .then(response => response.ok ? response.json() : Promise.reject())
+      .then(data => {
+        if (!active) return;
+        setPublishedProjects((data.projects || []).map(project => ({
+          ...project,
+          id: project.slug,
+          desc: project.description
+        })));
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const allProjects = useMemo(() => [...PROJECTS, ...publishedProjects], [publishedProjects]);
+
+  const popularProjects = useMemo(() => allProjects.filter((p) => p.popular), [allProjects]);
 
   const categoryProjects = useMemo(() => {
     if (!activeCategory) return [];
-    return PROJECTS.filter((p) => p.category === activeCategory);
-  }, [activeCategory]);
+    return allProjects.filter((p) => p.category === activeCategory);
+  }, [activeCategory, allProjects]);
 
   const grouped = useMemo(() => {
     const g = { Basic: [], Intermediate: [], Advanced: [] };
@@ -423,7 +443,7 @@ export default function ProjectHub() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
               {CATEGORIES.map((cat) => {
                 const Icon = cat.icon;
-                const count = PROJECTS.filter((p) => p.category === cat.id).length;
+                const count = allProjects.filter((p) => p.category === cat.id).length;
                 return (
                   <button
                     key={cat.id}
